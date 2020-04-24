@@ -31,5 +31,7 @@ These are the next steps to make this happen:
   and model specific files (including notes) live in model specific folders.
 - Define necessary abstractions for shared files, and define implementation 
   of abstractions (shared classes, child classes, etc.).
+- Define framework for configuration based model definition. Look up what
+  is already built into Keras and Tensorflow.
 - Implement the next model in the roadmap, GoogLeNet. Make sure that we
   are able to still run and train Alexnet correctly.

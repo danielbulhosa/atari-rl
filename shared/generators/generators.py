@@ -4,11 +4,12 @@ import time
 import re
 import numpy as np
 import pickle
-from alexnet_sequence import AlexNetSequence
+from imagenet_sequence import AlexNetSequence
+import shared.definitions.paths as paths
 
 """Load pixel averages"""
 results = None
-with open('pixel_avg.pkl', 'rb') as file:
+with open(paths.constants + 'pixel_avg.pkl', 'rb') as file:
     results = pickle.load(file)
 
 pixel_avg = results['pixel_avg']
@@ -17,7 +18,7 @@ pixel_avg = results['pixel_avg']
 # The covariances roughly align with the precalculated values used here
 # https://medium.com/@kushajreal/training-alexnet-with-tips-and-checks-on-how-to-train-cnns-practical-cnns-in-pytorch-1-61daa679c74a
 cov_results = None
-with open('cov.pkl', 'rb') as file:
+with open(paths.constants + 'cov.pkl', 'rb') as file:
     cov_results = pickle.load(file)
 
 cov = cov_results['cov']
@@ -26,7 +27,7 @@ eigenvalues, eigenvectors = cp.linalg.eigh(cov/255**2)
 stdev = cp.sqrt(cov.diagonal()/255**2)
 
 """Map Classes To Names & One-Hot Encodings"""
-with open('datasets/ILSVRC2012/sysnet_words.txt', 'r') as file:
+with open(paths.dataset + 'sysnet_words.txt', 'r') as file:
     words = file.readlines()
 
 codes = [re.match('n[0-9]*', word).group() for word in words]
@@ -36,8 +37,8 @@ index_code_map = dict(enumerate(codes))
 code_index_map = {code: index for index, code in index_code_map.items()}
 
 # Get list of training and validation examples and labels
-training_dir = "datasets/ILSVRC2012/Training/"
-validation_dir = "datasets/ILSVRC2012/Validation/"
+training_dir = paths.training
+validation_dir = paths.training
 num_classes = len(code_index_map)
 
 
@@ -49,7 +50,6 @@ def get_paths_and_classes(root_dir, code_index_map=code_index_map):
                   if class_dir[-4:] != ".tar"]
 
     for num, class_dir in enumerate(class_dirs):
-        t_dir_start = time.time()
 
         full_class_path = root_dir + class_dir + '/'
         class_images = [class_dir + '/' + image for image in os.listdir(full_class_path)
@@ -83,7 +83,7 @@ x_paths_val, y_labels_val = np.array(x_paths_val)[val_indices].tolist(), y_label
 train_gen = AlexNetSequence(x_paths_train,
                             y_labels_train,
                             128,
-                            '/home/daniel/AnacondaProjects/AlexNet/datasets/ILSVRC2012/Training/',
+                            paths.training,
                             np.array(eigenvectors.tolist()),
                             np.array(eigenvalues.tolist()),
                             np.array(pixel_avg.tolist()),
@@ -93,7 +93,7 @@ train_gen = AlexNetSequence(x_paths_train,
 val_gen = AlexNetSequence(x_paths_val,
                           y_labels_val,
                           128,
-                          '/home/daniel/AnacondaProjects/AlexNet/datasets/ILSVRC2012/Validation/',
+                          paths.validation,
                           np.array(eigenvectors.tolist()),
                           np.array(eigenvalues.tolist()),
                           np.array(pixel_avg.tolist()),
@@ -103,7 +103,7 @@ val_gen = AlexNetSequence(x_paths_val,
 test_gen = AlexNetSequence(x_paths_val,
                            y_labels_val,
                            13,  # Actual batch size is 10x because of TTAs
-                           '/home/daniel/AnacondaProjects/AlexNet/datasets/ILSVRC2012/Validation/',
+                           paths.validation,
                            np.array(eigenvectors.tolist()),
                            np.array(eigenvalues.tolist()),
                            np.array(pixel_avg.tolist()),

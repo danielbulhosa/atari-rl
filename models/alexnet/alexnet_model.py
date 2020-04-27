@@ -6,7 +6,7 @@ import keras.initializers as init
 import keras.optimizers as opt
 import keras.metrics as met
 import keras.losses as losses
-from local_response_normalization import lrn_parametric, lrn_shape
+from shared.custom_layers.local_response_normalization import lrn_parametric, lrn_shape
 
 k, n, alpha, beta = 2, 5, 1, 0.75
 lrn = lambda tensor: lrn_parametric(tensor, k, n, alpha, beta)

@@ -13,12 +13,11 @@ session = tf.Session(config=config)
 K.set_session(session=session)
 
 import keras.callbacks as call
-from keras_tqdm import TQDMNotebookCallback
 import gc
 print("Create Generators")
-from generators import train_gen, val_gen
+from shared.generators.generators import train_gen, val_gen
 print("Assemble & Compile Model")
-from alexnet_model_dev import alexnet  #, run_metadata FIXME: Causes problems in Pycharm, changed to `alexnet_model` import
+from models.alexnet.alexnet_model_dev import alexnet  #, run_metadata FIXME: Causes problems in Pycharm, changed to `alexnet_model` import
 from tensorflow.python.client import timeline
 
 """Model Loading (If Applicable)"""
@@ -44,9 +43,8 @@ tensorboard = call.TensorBoard(log_dir='alexnet/logs_v27',  # FIXME -- update di
                                write_images=True)
 checkpointer = call.ModelCheckpoint('alexnet/checkpoints_v27/weights.{epoch:02d}-{val_loss:.2f}.hdf5',  # FIXME -- update dir
                                    verbose=1)
-tqdm = TQDMNotebookCallback()
 
-# Added to address OOM Error
+# Added to address OOM Error - not sure if needed anymore
 # See: https://github.com/keras-team/keras/issues/3675
 garbage_collection = call.LambdaCallback(on_epoch_end=lambda epoch, logs: gc.collect())
 
@@ -59,7 +57,6 @@ alexnet.fit_generator(train_gen,
                       callbacks=[tensorboard,
                                  scheduler,
                                  checkpointer,
-                                 # tqdm, Not needed when running from script
                                  garbage_collection,
                                  ],
                       shuffle=True, # Note this only works because we removed step parameters
@@ -68,9 +65,3 @@ alexnet.fit_generator(train_gen,
                       max_queue_size=4,  # Optimal: A larger queue seems to not make much of a difference
                       initial_epoch=epoch_start
                      )
-
-# FIXME: Causes problems in Pycharm
-# tl = timeline.Timeline(run_metadata.step_stats)
-# ctf = tl.generate_chrome_trace_format()
-# with open('alexnet/performance/timeline.json', 'w') as f:
-#     f.write(ctf)

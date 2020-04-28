@@ -25,7 +25,7 @@ configuration files that we can commit and diff with each other. This should
 allow for better experiment tracking.
 
 These are the next steps to make this happen:
-- Search files for filepaths, update to match evolving project structure.
+- Search files for filepaths, update to match evolving project structure. **X**
 - Define which files will be shared and which will be model specific **X**
 - Create project structure where shared files live in a `shared` folder
   and model specific files (including notes) live in model specific folders. **X**
@@ -33,9 +33,13 @@ These are the next steps to make this happen:
   of abstractions (shared classes, child classes, etc.). **X**
 - Define framework for configuration based model definition. Look up what
   is already built into Keras and Tensorflow. **X**
-- Implement reorganizations and abstractions (Large task).
+- Implement reorganizations. (Medium task) **X**
+- Implement abstractions (Large task).
+    - Parametrize runners
+    - Parametrize sequence normalization and augmentations
+    - Parametrize model run parameters like batch size, epochs, etc.
 - Implement the next models in the roadmap. Make sure that we
-  are able to still run and train Alexnet correctly.
+  are able to still run and train Alexnet correctly (Large task).
   
 ### Notes on shared classes
 

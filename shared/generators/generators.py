@@ -4,7 +4,7 @@ import time
 import re
 import numpy as np
 import pickle
-from imagenet_sequence import AlexNetSequence
+from shared.generators.imagenet_sequence import AlexNetSequence
 import shared.definitions.paths as paths
 
 """Load pixel averages"""
@@ -38,7 +38,7 @@ code_index_map = {code: index for index, code in index_code_map.items()}
 
 # Get list of training and validation examples and labels
 training_dir = paths.training
-validation_dir = paths.training
+validation_dir = paths.validation
 num_classes = len(code_index_map)
 
 

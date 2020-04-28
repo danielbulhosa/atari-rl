@@ -1,13 +1,13 @@
 import numpy as np
 import tensorflow.keras.backend as K
 print("Create Generators")
-from generators import test_gen
+from shared.generators.generators import test_gen
 print("Assemble & Compile Model")
-from alexnet_model_dev import alexnet, top_1_acc, top_5_acc
-
+from models.alexnet.alexnet_model_dev import alexnet, top_1_acc, top_5_acc
+import shared.definitions.paths as paths
 
 """Model Loading"""
-checkpoint_dir = 'alexnet/checkpoints_v20/'
+checkpoint_dir = paths.models + 'alexnet/outputs/checkpoints_v20/'
 model_file = 'weights.58-2.73.hdf5'
 
 print("Loading Model")

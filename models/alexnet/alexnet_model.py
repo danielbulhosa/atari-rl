@@ -7,6 +7,7 @@ import keras.optimizers as opt
 import keras.metrics as met
 import keras.losses as losses
 from shared.custom_layers.local_response_normalization import lrn_parametric, lrn_shape
+import shared.definitions.paths as paths
 
 """
 Model Definition
@@ -121,12 +122,13 @@ scheduler_params = {'factor': 0.1,
                     'min_lr': 10**(-8),
                     'min_delta': 0.0001}
 
-tensorboard_params = {'log_dir': 'alexnet/logs_v{:02d}'.format(version),
+# Experiment directory format is {model}/{version}/{filetype}
+tensorboard_params = {'log_dir': paths.models + 'alexnet/v{:02d}/logs'.format(version),
                       'batch_size': 128,
                       'write_grads': True,
                       'write_images': True}
 
-checkpointer_params = {'filepath': 'alexnet/checkpoints_v{:02d}'.format(version)
+checkpointer_params = {'filepath': paths.models + 'alexnet/v{:02d}/checkpoints'.format(version)
                                    + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5',
                        'verbose': 1}
 

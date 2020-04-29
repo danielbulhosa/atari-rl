@@ -8,6 +8,11 @@ import keras.metrics as met
 import keras.losses as losses
 from shared.custom_layers.local_response_normalization import lrn_parametric, lrn_shape
 
+"""
+Model Definition
+"""
+version = 27  # FIXME -- update version
+
 k, n, alpha, beta = 2, 5, 1, 0.75
 lrn = lambda tensor: lrn_parametric(tensor, k, n, alpha, beta)
 
@@ -78,10 +83,9 @@ alexnet = mod.Sequential(
  ]
 )
 
-# run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-# run_metadata = tf.RunMetadata()
-
 """
+Optimizer, Loss, & Metrics
+
 Using zero built in decay and relying exclusively on the heuristic
 used in the original paper.
 """
@@ -103,9 +107,39 @@ def top_5_acc(y_true, y_pred):
 alexnet.compile(optimizer=optimizer,
                 loss=loss,
                 metrics=[top_1_acc, top_5_acc],
-                # options=run_options, FIXME: Causes problems in Pycharm
-                # run_metadata=run_metadata
                 )
+
+"""
+Callback Params
+"""
+# FIXME CHANGE #11 - Divide learning rate by 2
+scheduler_params = {'factor': 0.1,
+                    'monitor': 'val_categorical_accuracy',  # FIXME - change back to monitoring loss?
+                    'verbose': 1,
+                    'mode': 'auto',
+                    'patience': 5,
+                    'min_lr': 10**(-8),
+                    'min_delta': 0.0001}
+
+tensorboard_params = {'log_dir': 'alexnet/logs_v{:02d}'.format(version),
+                      'batch_size': 128,
+                      'write_grads': True,
+                      'write_images': True}
+
+checkpointer_params = {'filepath': 'alexnet/checkpoints_v{:02d}'.format(version)
+                                   + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5',
+                       'verbose': 1}
+
+"""
+Other Params
+"""
+
+num_epochs = 90
+
+# If model_file is not None and checkpoint_dir is not None then loading happens, else not
+loading_params = {'checkpoint_dir': None,
+                  'model_file': None,
+                  'epoch_start': None}
 
 if __name__ == '__main__':
     print(alexnet.summary())

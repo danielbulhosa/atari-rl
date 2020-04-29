@@ -8,6 +8,7 @@ import keras.metrics as met
 import keras.losses as losses
 from shared.custom_layers.local_response_normalization import lrn_parametric, lrn_shape
 import shared.definitions.paths as paths
+import albumentations
 
 """
 Model Definition
@@ -111,6 +112,14 @@ alexnet.compile(optimizer=optimizer,
                 )
 
 """
+Epochs & Batch Sizes
+"""
+num_epochs = 90
+train_batch_size = 128
+val_batch_size = 128
+test_batch_size = 13
+
+"""
 Callback Params
 """
 # FIXME CHANGE #11 - Divide learning rate by 2
@@ -124,7 +133,7 @@ scheduler_params = {'factor': 0.1,
 
 # Experiment directory format is {model}/{version}/{filetype}
 tensorboard_params = {'log_dir': paths.models + 'alexnet/v{:02d}/logs'.format(version),
-                      'batch_size': 128,
+                      'batch_size': train_batch_size,
                       'write_grads': True,
                       'write_images': True}
 
@@ -133,15 +142,26 @@ checkpointer_params = {'filepath': paths.models + 'alexnet/v{:02d}/checkpoints'.
                        'verbose': 1}
 
 """
-Other Params
+Augmentation Parameters
 """
 
-num_epochs = 90
+# FIXME CHANGE #10 - add this augmentation
+aug_list = [albumentations.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.2, rotate_limit=25),
+            albumentations.HorizontalFlip()]
+
+# FIXME CHANGE #6: Increased to 1 from 0.1
+shift_scale = 1
+
+
+"""
+Loading Params
+"""
 
 # If model_file is not None and checkpoint_dir is not None then loading happens, else not
 loading_params = {'checkpoint_dir': None,
                   'model_file': None,
                   'epoch_start': None}
+
 
 if __name__ == '__main__':
     print(alexnet.summary())

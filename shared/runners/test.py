@@ -1,17 +1,18 @@
 import numpy as np
 import tensorflow.keras.backend as K
 print("Create Generators")
-from shared.generators.generators import test_gen
+from shared.generators.generators import get_test_gen
 print("Assemble & Compile Model")
-from models.alexnet.alexnet_model_dev import alexnet, top_1_acc, top_5_acc
+from models.alexnet.alexnet_model_dev import alexnet, top_1_acc, top_5_acc, test_batch_size
 import shared.definitions.paths as paths
 
 """Model Loading"""
 checkpoint_dir = paths.models + 'alexnet/outputs/checkpoints_v20/'
 model_file = 'weights.58-2.73.hdf5'
 
-print("Loading Model")
+print("Loading Model & Generator")
 alexnet.load_weights(checkpoint_dir + model_file)
+test_gen = get_test_gen(test_batch_size)
 
 preds = alexnet.predict_generator(test_gen, max_queue_size=4, workers=4, verbose=1)
 

@@ -80,32 +80,47 @@ val_indices = np.random.choice(np.arange(len(x_paths_val)), size=len(x_paths_val
 x_paths_train, y_labels_train = np.array(x_paths_train)[train_indices].tolist(), y_labels_train[train_indices]
 x_paths_val, y_labels_val = np.array(x_paths_val)[val_indices].tolist(), y_labels_val[val_indices]
 
-train_gen = AlexNetSequence(x_paths_train,
-                            y_labels_train,
-                            128,
-                            paths.training,
-                            np.array(eigenvectors.tolist()),
-                            np.array(eigenvalues.tolist()),
-                            np.array(pixel_avg.tolist()),
-                            np.array(stdev.tolist()),
-                            'train')
 
-val_gen = AlexNetSequence(x_paths_val,
-                          y_labels_val,
-                          128,
-                          paths.validation,
-                          np.array(eigenvectors.tolist()),
-                          np.array(eigenvalues.tolist()),
-                          np.array(pixel_avg.tolist()),
-                          np.array(stdev.tolist()),
-                          'validate')
+def get_train_gen(batch_size, shift_scale, aug_list):
 
-test_gen = AlexNetSequence(x_paths_val,
+    return AlexNetSequence(x_paths_train,
+                           y_labels_train,
+                           batch_size,
+                           paths.training,
+                           np.array(eigenvectors.tolist()),
+                           np.array(eigenvalues.tolist()),
+                           np.array(pixel_avg.tolist()),
+                           np.array(stdev.tolist()),
+                           shift_scale,
+                           aug_list,
+                           'train')
+
+
+def get_val_gen(batch_size):
+
+    return AlexNetSequence(x_paths_val,
                            y_labels_val,
-                           13,  # Actual batch size is 10x because of TTAs
+                           batch_size,
                            paths.validation,
                            np.array(eigenvectors.tolist()),
                            np.array(eigenvalues.tolist()),
                            np.array(pixel_avg.tolist()),
                            np.array(stdev.tolist()),
+                           0,
+                           [],
+                           'validate')
+
+
+def get_test_gen(batch_size):
+
+    return AlexNetSequence(x_paths_val,
+                           y_labels_val,
+                           batch_size,  # Actual batch size is 10x because of TTAs
+                           paths.validation,
+                           np.array(eigenvectors.tolist()),
+                           np.array(eigenvalues.tolist()),
+                           np.array(pixel_avg.tolist()),
+                           np.array(stdev.tolist()),
+                           0,
+                           [],
                            'test')

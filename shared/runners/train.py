@@ -9,11 +9,11 @@ K.set_session(session=session)
 
 import keras.callbacks as call
 import gc
-print("Create Generators")
-from shared.generators.generators import train_gen, val_gen
+from shared.generators.generators import get_train_gen, get_val_gen
 print("Assemble & Compile Model")
 from models.alexnet.alexnet_model_dev import alexnet, scheduler_params, tensorboard_params, checkpointer_params,\
-                                             loading_params, num_epochs
+                                             loading_params, num_epochs, train_batch_size, val_batch_size,\
+                                             shift_scale, aug_list
 
 """Model Loading (If Applicable)"""
 checkpoint_dir = loading_params['checkpoint_dir']
@@ -36,6 +36,12 @@ checkpointer = call.ModelCheckpoint(**checkpointer_params)
 # Added to address OOM Error - not sure if needed anymore
 # See: https://github.com/keras-team/keras/issues/3675
 garbage_collection = call.LambdaCallback(on_epoch_end=lambda epoch, logs: gc.collect())
+
+print("Create Generators")
+"""Generators"""
+train_gen = get_train_gen(train_batch_size, shift_scale, aug_list)
+val_gen = get_val_gen(val_batch_size)
+
 
 """ Model train code """
 print("Begin Training Model")

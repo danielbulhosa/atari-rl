@@ -8,7 +8,8 @@ import math
 class AlexNetSequence(Sequence):
     def __init__(self, x_paths, y_labels, batch_size,
                  images_dir, eigenvectors, eigenvalues,
-                 pixel_avg, stdev, mode):
+                 pixel_avg, stdev, scale_shift,
+                 aug_list, mode):
         """
         We initialize the AlexNetSequence class by
         passing it all of the paths to the images we
@@ -26,7 +27,17 @@ class AlexNetSequence(Sequence):
         self.eigenvalues = eigenvalues
         self.pixel_avg = pixel_avg
         self.stdev = stdev
+        self.scale_shift = scale_shift
+        self.aug_list = aug_list
         self.mode = mode
+
+        valid_augmentations = all([isinstance(aug, albumentations.BasicTransform) for aug in self.aug_list])
+
+        if not valid_augmentations:
+            raise ValueError("Elements of `aug_list` must be valid albumentations augmentations")
+
+        if not self.scale_shift >= 0:
+            raise ValueError("`scale_shift` must be non-zero.")
 
     def __len__(self):
         """
@@ -96,7 +107,7 @@ class AlexNetSequence(Sequence):
         return np.pad(image, pad_dims, 'constant', constant_values=pad_vals)
 
     @staticmethod
-    def train_augment(image, eigenvectors, eigenvalues, pixel_avg, stdev):
+    def train_augment(image, eigenvectors, eigenvalues, pixel_avg, stdev, shift_scale, aug_list):
         """
         Takes an image from the training set, applies a random
         224 x 224 crop and a horizontal flip with 50% probability.
@@ -116,15 +127,14 @@ class AlexNetSequence(Sequence):
         crop_width = min(224, width)
         crop_height = min(224, height)
 
-        augmenter = albumentations.Compose([
+        augmenter = albumentations.Compose(
+            aug_list +  # We add custom augmentations separately
+            [
             # Note height comes first in crop transformations, made a mistake here before
-            albumentations.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.2, rotate_limit=25), # FIXME CHANGE #10 - add this augmentation
-            albumentations.RandomCrop(crop_height, crop_width),
-            albumentations.HorizontalFlip()
+            albumentations.RandomCrop(crop_height, crop_width)
         ])
 
-        # FIXME CHANGE #6: Increased to 1 from 0.1
-        alphas = np.random.normal(scale=1, size=3)
+        alphas = np.random.normal(scale=shift_scale, size=3)
         shift = np.zeros(3)
 
         for i in range(3):
@@ -212,7 +222,9 @@ class AlexNetSequence(Sequence):
                                                  self.eigenvectors,
                                                  self.eigenvalues,
                                                  self.pixel_avg,
-                                                 self.stdev)
+                                                 self.stdev,
+                                                 self.scale_shift,
+                                                 self.aug_list)
         elif self.mode == "validate":
             return AlexNetSequence.validate_augment(image,
                                                     self.pixel_avg,

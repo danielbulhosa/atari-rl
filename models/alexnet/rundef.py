@@ -106,10 +106,10 @@ def top_5_acc(y_true, y_pred):
     return  met.top_k_categorical_accuracy(y_true, tf.cast(y_pred, dtype='float32'), k=5)
 
 
-alexnet.compile(optimizer=optimizer,
-                loss=loss,
-                metrics=[top_1_acc, top_5_acc],
-                )
+model.compile(optimizer=optimizer,
+              loss=loss,
+              metrics=[top_1_acc, top_5_acc],
+              )
 
 """
 Epochs & Batch Sizes

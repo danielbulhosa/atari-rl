@@ -1,9 +1,11 @@
-import numpy as np
 import tensorflow.keras.backend as K
 print("Create Generators")
 from shared.generators.generators import get_test_gen
 print("Assemble & Compile Model")
-from models.alexnet.alexnet_model_dev import alexnet, top_1_acc, top_5_acc, test_batch_size
+import sys
+import importlib
+rundef_path = sys.argv[1]
+rundef = importlib.import_module(rundef_path)  # Run definition
 import shared.definitions.paths as paths
 
 """Model Loading"""
@@ -11,10 +13,10 @@ checkpoint_dir = paths.models + 'alexnet/outputs/checkpoints_v20/'
 model_file = 'weights.58-2.73.hdf5'
 
 print("Loading Model & Generator")
-alexnet.load_weights(checkpoint_dir + model_file)
-test_gen = get_test_gen(test_batch_size)
+rundef.model.load_weights(checkpoint_dir + model_file)
+test_gen = get_test_gen(rundef.test_batch_size)
 
-preds = alexnet.predict_generator(test_gen, max_queue_size=4, workers=4, verbose=1)
+preds = rundef.model.predict_generator(test_gen, max_queue_size=4, workers=4, verbose=1)
 
 repeats = 10
 mean_preds = None
@@ -30,8 +32,8 @@ mean_labels = K.constant(test_gen.y_labels)
 print(mean_preds.get_shape().as_list())
 print(mean_labels.get_shape().as_list())
 
-acc1 = top_1_acc(mean_labels, mean_preds)
-acc5 = top_5_acc(mean_labels, mean_preds)
+acc1 = rundef.top_1_acc(mean_labels, mean_preds)
+acc5 = rundef.top_5_acc(mean_labels, mean_preds)
 
 acc1_f = K.sum(acc1)/acc1.get_shape().as_list()[0]
 acc5_f = K.sum(acc5)/acc5.get_shape().as_list()[0]

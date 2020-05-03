@@ -3,11 +3,9 @@ import cv2
 import pickle
 import cupy as cp
 import time
+import shared.definitions.paths as paths
 
-# Number of class folders
-os.system('ls datasets/ILSVRC2012/Training | wc -l')
-
-root_dir = "datasets/ILSVRC2012/Training/"
+root_dir = paths.training
 class_dirs = [class_dir for class_dir in os.listdir(root_dir)
               if class_dir[-4:] != ".tar"]
 assert len(class_dirs) == 1000, """Not exactly 1000 classes were found!

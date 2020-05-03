@@ -6,12 +6,19 @@ import keras.initializers as init
 import keras.optimizers as opt
 import keras.metrics as met
 import keras.losses as losses
-from local_response_normalization import lrn_parametric, lrn_shape
+from shared.custom_layers.local_response_normalization import lrn_parametric, lrn_shape
+import shared.definitions.paths as paths
+import albumentations
+
+"""
+Model Definition
+"""
+version = 27  # FIXME -- update version
 
 k, n, alpha, beta = 2, 5, 1, 0.75
 lrn = lambda tensor: lrn_parametric(tensor, k, n, alpha, beta)
 
-alexnet = mod.Sequential(
+model = mod.Sequential(
  [# We input 224 x 224 pixel images with 3 channels (rgb)
   # We create 96 feature maps, by using an 11x11 pixel kernel with stride 4
   lyr.Conv2D(96, 11, strides=4, padding='same',
@@ -78,10 +85,9 @@ alexnet = mod.Sequential(
  ]
 )
 
-# run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-# run_metadata = tf.RunMetadata()
-
 """
+Optimizer, Loss, & Metrics
+
 Using zero built in decay and relying exclusively on the heuristic
 used in the original paper.
 """
@@ -100,12 +106,62 @@ def top_5_acc(y_true, y_pred):
     return  met.top_k_categorical_accuracy(y_true, tf.cast(y_pred, dtype='float32'), k=5)
 
 
-alexnet.compile(optimizer=optimizer,
-                loss=loss,
-                metrics=[top_1_acc, top_5_acc],
-                # options=run_options, FIXME: Causes problems in Pycharm
-                # run_metadata=run_metadata
-                )
+model.compile(optimizer=optimizer,
+              loss=loss,
+              metrics=[top_1_acc, top_5_acc],
+              )
+
+"""
+Epochs & Batch Sizes
+"""
+num_epochs = 90
+train_batch_size = 128
+val_batch_size = 128
+test_batch_size = 13
+
+"""
+Callback Params
+"""
+# FIXME CHANGE #11 - Divide learning rate by 2
+scheduler_params = {'factor': 0.1,
+                    'monitor': 'val_categorical_accuracy',  # FIXME - change back to monitoring loss?
+                    'verbose': 1,
+                    'mode': 'auto',
+                    'patience': 5,
+                    'min_lr': 10**(-8),
+                    'min_delta': 0.0001}
+
+# Experiment directory format is {model}/{version}/{filetype}
+tensorboard_params = {'log_dir': paths.models + 'alexnet/v{:02d}/logs'.format(version),
+                      'batch_size': train_batch_size,
+                      'write_grads': True,
+                      'write_images': True}
+
+checkpointer_params = {'filepath': paths.models + 'alexnet/v{:02d}/checkpoints'.format(version)
+                                   + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5',
+                       'verbose': 1}
+
+"""
+Augmentation Parameters
+"""
+
+# FIXME CHANGE #10 - add this augmentation
+aug_list = [albumentations.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.2, rotate_limit=25),
+            albumentations.HorizontalFlip()]
+
+# FIXME CHANGE #6: Increased to 1 from 0.1
+shift_scale = 1
+
+
+"""
+Loading Params
+"""
+
+# If model_file is not None and checkpoint_dir is not None then loading happens, else not
+loading_params = {'checkpoint_dir': None,
+                  'model_file': None,
+                  'epoch_start': None}
+
 
 if __name__ == '__main__':
     print(alexnet.summary())

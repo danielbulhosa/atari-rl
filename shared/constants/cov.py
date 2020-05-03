@@ -3,8 +3,9 @@ import cv2
 import pickle
 import cupy as cp
 import time
+import shared.definitions.paths as paths
 
-root_dir = "datasets/ILSVRC2012/Training/"
+root_dir = paths.training
 class_dirs = [class_dir for class_dir in os.listdir(root_dir)
               if class_dir[-4:] != ".tar"]
 assert len(class_dirs) == 1000, """Not exactly 1000 classes were found!
@@ -15,6 +16,11 @@ num_pixels = 0
 sum_cov = cp.array([[0.0, 0.0, 0.0],
                     [0.0, 0.0, 0.0],
                     [0.0, 0.0, 0.0]])
+
+with open('pixel_avg.pkl', 'rb') as file:
+    results = pickle.load(file)
+
+pixel_avg = results['pixel_avg']
 
 t_job_start = time.time()
 delta_ts = []

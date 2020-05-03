@@ -18,7 +18,7 @@ version = 27  # FIXME -- update version
 k, n, alpha, beta = 2, 5, 1, 0.75
 lrn = lambda tensor: lrn_parametric(tensor, k, n, alpha, beta)
 
-alexnet = mod.Sequential(
+model = mod.Sequential(
  [# We input 224 x 224 pixel images with 3 channels (rgb)
   # We create 96 feature maps, by using an 11x11 pixel kernel with stride 4
   lyr.Conv2D(96, 11, strides=4, padding='same',

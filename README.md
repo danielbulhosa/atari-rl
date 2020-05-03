@@ -25,29 +25,18 @@ configuration files that we can commit and diff with each other. This should
 allow for better experiment tracking.
 
 These are the next steps to make this happen:
-- Search files for filepaths, update to match evolving project structure. **X**
-- Define which files will be shared and which will be model specific **X**
-- Create project structure where shared files live in a `shared` folder
-  and model specific files (including notes) live in model specific folders. **X**
-- Define necessary abstractions for shared files, and define implementation 
-  of abstractions (shared classes, child classes, etc.). **X**
-- Define framework for configuration based model definition. Look up what
-  is already built into Keras and Tensorflow. **X**
-- Implement reorganizations. (Medium task) **X**
-- Implement abstractions (Large task).
-    - Parametrize runners
-    - Parametrize sequence normalization and augmentations
-    - Parametrize model run parameters like batch size, epochs, etc.
+- Implement folder structure within model folders to keep track
+  of versions.
 - Implement the next models in the roadmap. Make sure that we
   are able to still run and train Alexnet correctly (Large task).
   
-### Notes on shared classes
-
-**TL;DR**: We do not have to change the image preprocessing. The image import 
-  and generation can stay largely the same. All of the models subtract the mean
-  and take a random 224x224 crop from the preprocessed image. The augmentation
-  may vary across models, and such maybe we want to abstract out the augmentations
-  and parametrize the normalization so it can be toggled. 
+Optional:
+- Parametrize normalization
+- Parametrize subset of classes used for training
+- Write a shell script for cleaning up checkpoints so we only keep the last one. 
+  Otherwise we'll eat up memory unnecessarily. 
+  
+### Notes on new models (augmentation, settings, etc.)
 
 - Need to look more closely, but in the case of GoogLeNet it seems the 
   preprocessing is the same as for Alexnet. The input is 224x224, cropped
@@ -67,40 +56,10 @@ These are the next steps to make this happen:
 The folder contains a copy of the Python model file, notes about that version, 
 and a folder with checkpoints (or just the last checkpoint).
 
-We probably want to change the train and test runners from being scripts to being
-callable functions with parameters. This way we can use the parameters to specify
-the model file, augmentations, and train parameters we want to run with.
+- Will implement this as part of PR implementing new models. This way we can
+  experiment more before reformatting all of the Alexnet work.
 
-Not sure yet what to do about augmentations, normalization, or training settings.
-We likely can just make augmentations into functions that we pass to the runner. 
-We can make normalization into something that can be toggled on and off in the
-generator class. As for the training settings maybe we can do these as a config 
-file since there's only a handful to specify, and we can pass this configuration
-to the runner method.
+#### Notes
 
-#### Models
-
-
-- Keras does have built in methods for writing models out as configuration (`model.get_config()`).
-- However the printout is extremely verbose, so much so it's harder to read than the code itself.
-- Given this we think it's actually better to create a new copy of the model source code
-  every time we update the model. Then we can store the model code, the checkpoints, and our
-  notes in a single folder corresponding to that run for the model.
 - We can use the terminal command `vimdiff` to get the diff between model files. This command 
-  works very well.
-- May be good to write a shell script for cleaning up checkpoints so we only keep the last one. 
-  Otherwise we'll eat up memory unnecessarily. 
-
-#### Augmentations, Normalization, & Training Settings
-
-- How do we keep track of changes in these?
-- Maybe the augmentation function can live with the model, and we can pass it to the generator
-  through the runnner?
-
-#### Runners
-
-- Likely want to parametrize how model gets passed to runner.
-- Also likely want to parametrize sequence generation so we can change up the 
-  function used to generate the augmentations.
-
-
+  highlights changes intuitively.

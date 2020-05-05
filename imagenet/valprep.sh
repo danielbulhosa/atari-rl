@@ -1,6 +1,10 @@
 # Script linked from: https://medium.com/@kushajreal/training-alexnet-with-tips-and-checks-on-how-to-train-cnns-practical-cnns-in-pytorch-1-61daa679c74a
-
+mkdir Validation
+mv ILSVRC2012_img_val.tar Validation
 cd Validation
+tar -xvf ILSVRC2012_img_val.tar
+
+
 
 mkdir -p n01440764	
 mkdir -p n01443537	

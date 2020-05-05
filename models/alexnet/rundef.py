@@ -164,4 +164,4 @@ loading_params = {'checkpoint_dir': None,
 
 
 if __name__ == '__main__':
-    print(alexnet.summary())
+    print(model.summary())

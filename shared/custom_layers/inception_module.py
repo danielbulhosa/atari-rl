@@ -45,7 +45,7 @@ def inception(input, one, three_red, three, five_red, five, pool_proj,
 
     five_out = get_convolution(five, 5, 1)(five_intermediate)
 
-    pool_proj_intermediate = lyr.MaxPool2D(3, 1)(input)
+    pool_proj_intermediate = lyr.MaxPool2D(3, 1, 'same')(input)
 
     pool_proj_out = get_convolution(pool_proj, 1, 1)(pool_proj_intermediate)
 

@@ -56,6 +56,7 @@ Optimizer, Loss, & Metrics
 Using zero built in decay and relying exclusively on the heuristic
 used in the original paper.
 """
+# FIXME: Is this a good starting optimizer?
 optimizer = opt.Adam(0.0001)
 # This line below would match the paper exactly but was MUCH slower than using Adam on 2 class example
 # optimizer = opt.SGD(learning_rate=0.01, momentum=0.9, decay=0.0) # Note decay refers to learning rate
@@ -79,6 +80,7 @@ model.compile(optimizer=optimizer,
 """
 Epochs & Batch Sizes
 """
+# FIXME: Number of epochs for this model?
 num_epochs = 90
 train_batch_size = 128
 val_batch_size = 128

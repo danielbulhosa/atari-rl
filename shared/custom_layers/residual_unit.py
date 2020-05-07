@@ -1,7 +1,7 @@
 import keras.layers as lyr
 
 
-def residual_unit(input, filters, downsample, kernel_initializer, bias_initializer,
+def residual_unit(input, size, filters, downsample, kernel_initializer, bias_initializer,
                   kernel_regularizer, bias_regularizer):
     """
     Residual unit using pre-activation as described in:
@@ -18,6 +18,7 @@ def residual_unit(input, filters, downsample, kernel_initializer, bias_initializ
     layer doing exactly this later on.
 
     :param input: The input tensor.
+    :param siez: The size of the convolutional filters.
     :param filters: The number of filters in each convolutional layer of the residual unit.
     :param downsample: Whether to downsample at the beginning of the layer. If so we downsample by 2
                        and we use 1x1 convolutions to resize the residual.
@@ -31,7 +32,7 @@ def residual_unit(input, filters, downsample, kernel_initializer, bias_initializ
 
     strides = 2 if downsample else 1
 
-    def get_convolution(filters, size):
+    def get_convolution(filters, strides):
         return lyr.Conv2D(filters, size, strides=strides, padding='same',
                           kernel_initializer=kernel_initializer,
                           bias_initializer=bias_initializer,
@@ -41,18 +42,18 @@ def residual_unit(input, filters, downsample, kernel_initializer, bias_initializ
 
     int1 = lyr.BatchNormalization()(input)
     int2 = lyr.ReLU()(int1)
-    int3 = get_convolution(filters, 3)(int2)
+    int3 = get_convolution(filters, strides)(int2)
     int4 = lyr.BatchNormalization()(int3)
     int5 = lyr.ReLU()(int4)
-    int6 = get_convolution(filters, 3)(int5)
+    int6 = get_convolution(filters, 1)(int5)
 
     # If downsampling we use convolutional filters to increase filters
     # and reduce the size of the image. This gets dimensions to match.
     if downsample:
-        res = get_convolution(filters, 1)
+        res = get_convolution(filters, 2)(input)
     else:
         res = input
 
-    out = lyr.add([res, int6])
+    out = lyr.Add()([res, int6])
 
     return out

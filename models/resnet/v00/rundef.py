@@ -17,12 +17,11 @@ Model Definition
 """
 version = 0
 
-# FIXME: Initialization and regularization not clearly specified in paper
 init_reg = {
     'kernel_initializer': init.he_uniform(),
     'bias_initializer': init.Zeros(),
-    'kernel_regularizer': reg.l2(0.0005),
-    'bias_regularizer': reg.l2(0.0005)
+    'kernel_regularizer': reg.l2(0.0001),
+    'bias_regularizer': reg.l2(0.0001)
 }
 
 # Number of repetitions of each type of residual unit
@@ -65,10 +64,9 @@ Optimizer, Loss, & Metrics
 Using zero built in decay and relying exclusively on the heuristic
 used in the original paper.
 """
-# FIXME: Is this a good starting optimizer?
-optimizer = opt.Adam(0.0001)
-# This line below would match the paper exactly but was MUCH slower than using Adam on 2 class example
-# optimizer = opt.SGD(learning_rate=0.01, momentum=0.9, decay=0.0) # Note decay refers to learning rate
+optimizer = opt.Adam(0.001)
+# This line below is what was used in the original ResNet paper. Adam is the recommended approach now though.
+# optimizer = opt.SGD(learning_rate=0.1, momentum=0.9, decay=0.0) # Note decay refers to learning rate
 
 top_1_acc = met.categorical_accuracy
 
@@ -89,19 +87,18 @@ model.compile(optimizer=optimizer,
 """
 Epochs & Batch Sizes
 """
-# FIXME: Number of epochs for this model?
-num_epochs = 90
-train_batch_size = 128
-val_batch_size = 128
-test_batch_size = 13
+num_epochs = 120  # Maximum, equivalent to 60 x 10^4 iterations where iteration = step and minibatch size is 256
+train_batch_size = 256
+val_batch_size = 256
+test_batch_size = 26
 
 """
 Callback Params
 """
 
-# FIXME - start with defaults for this model?
-scheduler_params = {'factor': 0.1,
-                    'monitor': 'val_loss',
+# Paper does not specify what the patience was when training the original model
+scheduler_params = {'factor': 0.1,  # Reduce by factor of 10
+                    'monitor': 'val_categorical_accuracy',  # They monitor the error not the loss
                     'verbose': 1,
                     'mode': 'auto',
                     'patience': 5,
@@ -128,12 +125,10 @@ checkpointer_params = {'filepath': paths.models + 'googlenet/v{:02d}/checkpoints
 Augmentation Parameters
 """
 
-# FIXME: Which augmentations to start with for ResNet?
-aug_list = [albumentations.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.2, rotate_limit=25),
-            albumentations.HorizontalFlip()]
+aug_list = [albumentations.HorizontalFlip()]
 
-# FIXME: Do we want this augmentation for this model?
-shift_scale = 1
+# Referred to as the "standard color augmentation" in original ResNet paper
+shift_scale = 0.1
 
 
 """

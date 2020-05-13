@@ -9,6 +9,7 @@ import keras.regularizers as reg
 import keras.initializers as init
 import shared.custom_layers.residual_unit as custom
 import shared.definitions.paths as paths
+from shared.generators.augmentation_list import AugmentationList
 import albumentations
 import os
 from os import path
@@ -128,7 +129,7 @@ checkpointer_params = {'filepath': paths.models + 'googlenet/v{:02d}/checkpoints
 Augmentation Parameters
 """
 
-aug_list = [albumentations.HorizontalFlip()]
+aug_list = AugmentationList(albumentations.HorizontalFlip())
 
 # Referred to as the "standard color augmentation" in original ResNet paper
 shift_scale = 0.1

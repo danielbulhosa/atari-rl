@@ -31,7 +31,7 @@ else:
     epochs = rundef.num_epochs
 
 """Callbacks"""
-scheduler = call.ReduceLROnPlateau(**rundef.scheduler_params)
+scheduler = rundef.scheduler
 tensorboard = call.TensorBoard(**rundef.tensorboard_params)
 checkpointer = call.ModelCheckpoint(**rundef.checkpointer_params)
 

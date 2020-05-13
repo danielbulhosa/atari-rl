@@ -8,6 +8,7 @@ import keras.optimizers as opt
 import keras.metrics as met
 import keras.losses as losses
 from shared.custom_layers.local_response_normalization import lrn_parametric, lrn_shape
+from shared.generators.augmentation_list import AugmentationList
 import shared.definitions.paths as paths
 import albumentations
 
@@ -149,8 +150,8 @@ Augmentation Parameters
 """
 
 # FIXME CHANGE #10 - add this augmentation
-aug_list = [albumentations.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.2, rotate_limit=25),
-            albumentations.HorizontalFlip()]
+aug_list = AugmentationList(albumentations.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.2, rotate_limit=25),
+                            albumentations.HorizontalFlip())
 
 # FIXME CHANGE #6: Increased to 1 from 0.1
 shift_scale = 1

@@ -3,6 +3,7 @@ import keras.models as mod
 import keras.layers as lyr
 import keras.regularizers as reg
 import keras.initializers as init
+import keras.callbacks as call
 import keras.optimizers as opt
 import keras.metrics as met
 import keras.losses as losses
@@ -130,6 +131,8 @@ scheduler_params = {'factor': 0.1,
                     'patience': 5,
                     'min_lr': 10**(-8),
                     'min_delta': 0.0001}
+
+scheduler = call.ReduceLROnPlateau(**scheduler_params)
 
 # Experiment directory format is {model}/{version}/{filetype}
 tensorboard_params = {'log_dir': paths.models + 'alexnet/v{:02d}/logs'.format(version),

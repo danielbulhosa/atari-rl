@@ -2,6 +2,7 @@ import keras.models as mod
 import keras.layers as lyr
 import keras.optimizers as opt
 import keras.metrics as met
+import keras.callbacks as call
 import tensorflow as tf
 import keras.losses as losses
 import keras.regularizers as reg
@@ -104,6 +105,8 @@ scheduler_params = {'factor': 0.1,  # Reduce by factor of 10
                     'patience': 5,
                     'min_lr': 10**(-8),
                     'min_delta': 0.0001}
+
+scheduler = call.ReduceLROnPlateau(**scheduler_params)
 
 if not path.isdir('checkpoints'):
     os.mkdir('checkpoints')

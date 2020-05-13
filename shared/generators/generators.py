@@ -5,6 +5,7 @@ import re
 import numpy as np
 import pickle
 from shared.generators.imagenet_sequence import AlexNetSequence
+from shared.generators.augmentation_list import AugmentationList
 import shared.definitions.paths as paths
 
 """Load pixel averages"""
@@ -107,7 +108,7 @@ def get_val_gen(batch_size):
                            np.array(pixel_avg.tolist()),
                            np.array(stdev.tolist()),
                            0,
-                           [],
+                           AugmentationList(*[]),
                            'validate')
 
 
@@ -122,5 +123,5 @@ def get_test_gen(batch_size):
                            np.array(pixel_avg.tolist()),
                            np.array(stdev.tolist()),
                            0,
-                           [],
+                           AugmentationList(*[]),
                            'test')

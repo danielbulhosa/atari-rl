@@ -3,6 +3,7 @@ import numpy as np
 import albumentations
 import cv2
 import math
+from shared.generators.augmentation_list import AugmentationList
 
 
 class AlexNetSequence(Sequence):
@@ -31,13 +32,7 @@ class AlexNetSequence(Sequence):
         self.aug_list = aug_list
         self.mode = mode
 
-        valid_augmentations = all([isinstance(aug, albumentations.BasicTransform) for aug in self.aug_list])
-
-        if not valid_augmentations:
-            raise ValueError("Elements of `aug_list` must be valid albumentations augmentations")
-
-        if not self.scale_shift >= 0:
-            raise ValueError("`scale_shift` must be non-zero.")
+        assert isinstance(aug_list, AugmentationList), "`aug_list` must be of class AugmetationList"
 
     def __len__(self):
         """
@@ -128,7 +123,7 @@ class AlexNetSequence(Sequence):
         crop_height = min(224, height)
 
         augmenter = albumentations.Compose(
-            aug_list +  # We add custom augmentations separately
+            aug_list.get() +  # We add custom augmentations separately
             [
             # Note height comes first in crop transformations, made a mistake here before
             albumentations.RandomCrop(crop_height, crop_width)

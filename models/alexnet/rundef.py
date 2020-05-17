@@ -16,6 +16,8 @@ import albumentations
 Model Definition
 """
 version = 27  # FIXME -- update version
+num_classes = 1000
+num_batches = None
 
 k, n, alpha, beta = 2, 5, 1, 0.75
 lrn = lambda tensor: lrn_parametric(tensor, k, n, alpha, beta)
@@ -77,7 +79,7 @@ model = mod.Sequential(
             bias_regularizer=reg.l2(0.0005)
             ),
   lyr.Dropout(0.5),
-  lyr.Dense(1000,
+  lyr.Dense(num_classes,
             activation='softmax',
             kernel_initializer=init.he_uniform(),  # original: RandomNormal(stdev=0.01)
             bias_initializer=init.Zeros(),  # original: init.Ones()

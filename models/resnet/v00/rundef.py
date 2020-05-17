@@ -18,6 +18,8 @@ from os import path
 Model Definition
 """
 version = 0
+num_classes = 1000
+num_batches = None
 
 init_reg = {
     'kernel_initializer': init.he_uniform(),
@@ -55,7 +57,7 @@ for reps, spec in zip(convx_rep, convx_spec):
 
 avg_pool = lyr.AvgPool2D(7, 1, padding='valid')(current_intermediate)
 flatten = lyr.Flatten()(avg_pool)
-out = lyr.Dense(1000, activation='relu', **init_reg)(flatten)
+out = lyr.Dense(num_classes, activation='relu', **init_reg)(flatten)
 
 model = mod.Model(inputs=input, outputs=out)
 

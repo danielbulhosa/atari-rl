@@ -18,6 +18,8 @@ from os import path
 Model Definition
 """
 version = 0
+num_classes = 1000
+num_batches = None
 
 # Can't find initialization or regularization of weights in paper. Using same as ResNet.
 init_reg = {
@@ -47,7 +49,7 @@ lyrout15 = custom.inception(lyrout14, 384, 192, 384, 48, 128, 128, **init_reg)
 lyrout16 = lyr.AvgPool2D(7, 1, 'valid')(lyrout15)
 lyrout17 = lyr.Flatten()(lyrout16)
 lyrout18 = lyr.Dropout(0.4)(lyrout17)
-out = lyr.Dense(1000, activation='softmax', **init_reg)(lyrout18)
+out = lyr.Dense(num_classes, activation='softmax', **init_reg)(lyrout18)
 
 model = mod.Model(inputs=input, outputs=out)
 

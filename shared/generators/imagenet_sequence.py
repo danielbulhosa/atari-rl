@@ -6,13 +6,13 @@ import math
 from shared.generators.augmentation_list import AugmentationList
 
 
-class AlexNetSequence(Sequence):
+class ImagenetSequence(Sequence):
     def __init__(self, x_paths, y_labels, batch_size,
                  images_dir, eigenvectors, eigenvalues,
                  pixel_avg, stdev, scale_shift,
                  aug_list, mode):
         """
-        We initialize the AlexNetSequence class by
+        We initialize the ImagenetSequence class by
         passing it all of the paths to the images we
         use for training along with a matching array
         with the class labels.
@@ -139,7 +139,7 @@ class AlexNetSequence(Sequence):
         # Since standard deviation is less than 1 this will increase the shift and thus increase regularization...
         output_image = ((augmenter(image=image)["image"] - pixel_avg) / 255 + shift)/stdev
 
-        return AlexNetSequence.pad_image(output_image)
+        return ImagenetSequence.pad_image(output_image)
 
     @staticmethod
     def validate_augment(image, pixel_avg, stdev):
@@ -156,7 +156,7 @@ class AlexNetSequence(Sequence):
 
         output_image = ((augmenter(image=image)["image"] - pixel_avg) / 255)/stdev
 
-        return AlexNetSequence.pad_image(output_image)
+        return ImagenetSequence.pad_image(output_image)
 
     @staticmethod
     def test_augment(image, eigenvectors, eigenvalues, pixel_avg, stdev):
@@ -197,7 +197,7 @@ class AlexNetSequence(Sequence):
                 augmentations = [cropper, flipper] if is_reflected else [cropper]
                 augmenter = albumentations.Compose(augmentations)
                 output_image = ((augmenter(image=image)["image"] - pixel_avg) / 255)/stdev
-                output_images.append(AlexNetSequence.pad_image(output_image))
+                output_images.append(ImagenetSequence.pad_image(output_image))
 
         return output_images
 
@@ -213,7 +213,7 @@ class AlexNetSequence(Sequence):
         goal.
         """
         if self.mode == "train":
-            return AlexNetSequence.train_augment(image,
+            return ImagenetSequence.train_augment(image,
                                                  self.eigenvectors,
                                                  self.eigenvalues,
                                                  self.pixel_avg,
@@ -221,12 +221,12 @@ class AlexNetSequence(Sequence):
                                                  self.scale_shift,
                                                  self.aug_list)
         elif self.mode == "validate":
-            return AlexNetSequence.validate_augment(image,
+            return ImagenetSequence.validate_augment(image,
                                                     self.pixel_avg,
                                                     self.stdev)
 
         elif self.mode == "test":
-            return AlexNetSequence.test_augment(image,
+            return ImagenetSequence.test_augment(image,
                                                 self.eigenvectors,
                                                 self.eigenvalues,
                                                 self.pixel_avg,

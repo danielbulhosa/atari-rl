@@ -4,7 +4,7 @@ import time
 import re
 import numpy as np
 import pickle
-from shared.generators.imagenet_sequence import AlexNetSequence
+from shared.generators.imagenet_sequence import ImagenetSequence
 from shared.generators.augmentation_list import AugmentationList
 import shared.definitions.paths as paths
 
@@ -93,7 +93,7 @@ def get_train_gen(batch_size, nclasses, num_batches, shift_scale, aug_list):
     x_paths_train, y_labels_train = np.array(x_paths_train)[train_indices].tolist(), y_labels_train[train_indices]
 
     # Filter number of minibatches processed for debugging
-    return AlexNetSequence(x_paths_train if num_batches is None else x_paths_train[:batch_size * num_batches],
+    return ImagenetSequence(x_paths_train if num_batches is None else x_paths_train[:batch_size * num_batches],
                            y_labels_train if num_batches is None else y_labels_train[:batch_size * num_batches],
                            batch_size,
                            paths.training,
@@ -115,7 +115,7 @@ def get_val_gen(batch_size, nclasses, num_batches):
     x_paths_val, y_labels_val = np.array(x_paths_val)[val_indices].tolist(), y_labels_val[val_indices]
 
     # Filter number of minibatches processed for debugging
-    return AlexNetSequence(x_paths_val if num_batches is None else x_paths_val[:batch_size * num_batches],
+    return ImagenetSequence(x_paths_val if num_batches is None else x_paths_val[:batch_size * num_batches],
                            y_labels_val if num_batches is None else y_labels_val[:batch_size * num_batches],
                            batch_size,
                            paths.validation,
@@ -136,7 +136,7 @@ def get_test_gen(batch_size, nclasses):
     # our gradient estimate biased.
     x_paths_val, y_labels_val = np.array(x_paths_val)[val_indices].tolist(), y_labels_val[val_indices]
 
-    return AlexNetSequence(x_paths_val,
+    return ImagenetSequence(x_paths_val,
                            y_labels_val,
                            batch_size,  # Actual batch size is 10x because of TTAs
                            paths.validation,

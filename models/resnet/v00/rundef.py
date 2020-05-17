@@ -118,12 +118,12 @@ if not path.isdir('logs'):
     os.mkdir('logs')
 
 # Experiment directory format is {model}/{version}/{filetype}
-tensorboard_params = {'log_dir': paths.models + 'googlenet/v{:02d}/logs'.format(version),
+tensorboard_params = {'log_dir': paths.models + 'resnet/v{:02d}/logs'.format(version),
                       'batch_size': train_batch_size,
                       'write_grads': True,
                       'write_images': True}
 
-checkpointer_params = {'filepath': paths.models + 'googlenet/v{:02d}/checkpoints'.format(version)
+checkpointer_params = {'filepath': paths.models + 'resnet/v{:02d}/checkpoints'.format(version)
                                    + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5',
                        'verbose': 1}
 

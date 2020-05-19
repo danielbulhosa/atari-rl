@@ -15,7 +15,7 @@ import albumentations
 """
 Model Definition
 """
-version = 27  # FIXME -- update version
+version = 0
 num_classes = 1000
 num_batches = None
 
@@ -126,9 +126,8 @@ test_batch_size = 13
 """
 Callback Params
 """
-# FIXME CHANGE #11 - Divide learning rate by 2
 scheduler_params = {'factor': 0.1,
-                    'monitor': 'val_categorical_accuracy',  # FIXME - change back to monitoring loss?
+                    'monitor': 'val_categorical_accuracy',
                     'verbose': 1,
                     'mode': 'auto',
                     'patience': 5,
@@ -151,12 +150,8 @@ checkpointer_params = {'filepath': paths.models + 'alexnet/v{:02d}/checkpoints'.
 Augmentation Parameters
 """
 
-# FIXME CHANGE #10 - add this augmentation
-aug_list = AugmentationList(albumentations.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.2, rotate_limit=25),
-                            albumentations.HorizontalFlip())
-
-# FIXME CHANGE #6: Increased to 1 from 0.1
-shift_scale = 1
+aug_list = AugmentationList(albumentations.HorizontalFlip())
+shift_scale = 0.1
 
 
 """

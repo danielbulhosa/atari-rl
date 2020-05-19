@@ -3,15 +3,16 @@ import numpy as np
 import albumentations
 import cv2
 import math
+from shared.generators.augmentation_list import AugmentationList
 
 
-class AlexNetSequence(Sequence):
+class ImagenetSequence(Sequence):
     def __init__(self, x_paths, y_labels, batch_size,
                  images_dir, eigenvectors, eigenvalues,
                  pixel_avg, stdev, scale_shift,
                  aug_list, mode):
         """
-        We initialize the AlexNetSequence class by
+        We initialize the ImagenetSequence class by
         passing it all of the paths to the images we
         use for training along with a matching array
         with the class labels.
@@ -31,13 +32,7 @@ class AlexNetSequence(Sequence):
         self.aug_list = aug_list
         self.mode = mode
 
-        valid_augmentations = all([isinstance(aug, albumentations.BasicTransform) for aug in self.aug_list])
-
-        if not valid_augmentations:
-            raise ValueError("Elements of `aug_list` must be valid albumentations augmentations")
-
-        if not self.scale_shift >= 0:
-            raise ValueError("`scale_shift` must be non-zero.")
+        assert isinstance(aug_list, AugmentationList), "`aug_list` must be of class AugmetationList"
 
     def __len__(self):
         """
@@ -128,7 +123,7 @@ class AlexNetSequence(Sequence):
         crop_height = min(224, height)
 
         augmenter = albumentations.Compose(
-            aug_list +  # We add custom augmentations separately
+            aug_list.get() +  # We add custom augmentations separately
             [
             # Note height comes first in crop transformations, made a mistake here before
             albumentations.RandomCrop(crop_height, crop_width)
@@ -144,7 +139,7 @@ class AlexNetSequence(Sequence):
         # Since standard deviation is less than 1 this will increase the shift and thus increase regularization...
         output_image = ((augmenter(image=image)["image"] - pixel_avg) / 255 + shift)/stdev
 
-        return AlexNetSequence.pad_image(output_image)
+        return ImagenetSequence.pad_image(output_image)
 
     @staticmethod
     def validate_augment(image, pixel_avg, stdev):
@@ -161,7 +156,7 @@ class AlexNetSequence(Sequence):
 
         output_image = ((augmenter(image=image)["image"] - pixel_avg) / 255)/stdev
 
-        return AlexNetSequence.pad_image(output_image)
+        return ImagenetSequence.pad_image(output_image)
 
     @staticmethod
     def test_augment(image, eigenvectors, eigenvalues, pixel_avg, stdev):
@@ -202,7 +197,7 @@ class AlexNetSequence(Sequence):
                 augmentations = [cropper, flipper] if is_reflected else [cropper]
                 augmenter = albumentations.Compose(augmentations)
                 output_image = ((augmenter(image=image)["image"] - pixel_avg) / 255)/stdev
-                output_images.append(AlexNetSequence.pad_image(output_image))
+                output_images.append(ImagenetSequence.pad_image(output_image))
 
         return output_images
 
@@ -218,7 +213,7 @@ class AlexNetSequence(Sequence):
         goal.
         """
         if self.mode == "train":
-            return AlexNetSequence.train_augment(image,
+            return ImagenetSequence.train_augment(image,
                                                  self.eigenvectors,
                                                  self.eigenvalues,
                                                  self.pixel_avg,
@@ -226,12 +221,12 @@ class AlexNetSequence(Sequence):
                                                  self.scale_shift,
                                                  self.aug_list)
         elif self.mode == "validate":
-            return AlexNetSequence.validate_augment(image,
+            return ImagenetSequence.validate_augment(image,
                                                     self.pixel_avg,
                                                     self.stdev)
 
         elif self.mode == "test":
-            return AlexNetSequence.test_augment(image,
+            return ImagenetSequence.test_augment(image,
                                                 self.eigenvectors,
                                                 self.eigenvalues,
                                                 self.pixel_avg,

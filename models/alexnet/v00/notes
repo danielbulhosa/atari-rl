@@ -1,0 +1,22 @@
+Notes for base model
+
+This model is the closest version of AlexNet to that implemented in
+the original paper that worked for us. The changes we made were the 
+following:
+
+- He initialization for weights for faster propagation of signal.
+  This change had the least impact.
+- Change the optimizer to Adam and the initial learning rate to
+  0.0001. We found that this avoided divergence, significantly
+  sped up initial learning, and avoided NaN errors with the loss
+  we got with standard SGD.
+- Initialize weight biases to zero. In the original paper some
+  weight biases were initalized to one. We found this significantly
+  slowed down learning. We don't think this initialization makes
+  sense anyways given that we standardized the data. which means
+  that:
+	- An initialization of 1 is quite large in terms of 
+          standard deviations (vs. pixels).
+	- An initialization of 1 isn't likely the best guess
+          when we subtract the pixel mean from all the images.
+

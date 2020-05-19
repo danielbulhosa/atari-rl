@@ -3,17 +3,21 @@ import keras.models as mod
 import keras.layers as lyr
 import keras.regularizers as reg
 import keras.initializers as init
+import keras.callbacks as call
 import keras.optimizers as opt
 import keras.metrics as met
 import keras.losses as losses
 from shared.custom_layers.local_response_normalization import lrn_parametric, lrn_shape
+from shared.generators.augmentation_list import AugmentationList
 import shared.definitions.paths as paths
 import albumentations
 
 """
 Model Definition
 """
-version = 27  # FIXME -- update version
+version = 0
+num_classes = 1000
+num_batches = None
 
 k, n, alpha, beta = 2, 5, 1, 0.75
 lrn = lambda tensor: lrn_parametric(tensor, k, n, alpha, beta)
@@ -75,7 +79,7 @@ model = mod.Sequential(
             bias_regularizer=reg.l2(0.0005)
             ),
   lyr.Dropout(0.5),
-  lyr.Dense(1000,
+  lyr.Dense(num_classes,
             activation='softmax',
             kernel_initializer=init.he_uniform(),  # original: RandomNormal(stdev=0.01)
             bias_initializer=init.Zeros(),  # original: init.Ones()
@@ -122,14 +126,15 @@ test_batch_size = 13
 """
 Callback Params
 """
-# FIXME CHANGE #11 - Divide learning rate by 2
 scheduler_params = {'factor': 0.1,
-                    'monitor': 'val_categorical_accuracy',  # FIXME - change back to monitoring loss?
+                    'monitor': 'val_categorical_accuracy',
                     'verbose': 1,
                     'mode': 'auto',
                     'patience': 5,
                     'min_lr': 10**(-8),
                     'min_delta': 0.0001}
+
+scheduler = call.ReduceLROnPlateau(**scheduler_params)
 
 # Experiment directory format is {model}/{version}/{filetype}
 tensorboard_params = {'log_dir': paths.models + 'alexnet/v{:02d}/logs'.format(version),
@@ -145,12 +150,8 @@ checkpointer_params = {'filepath': paths.models + 'alexnet/v{:02d}/checkpoints'.
 Augmentation Parameters
 """
 
-# FIXME CHANGE #10 - add this augmentation
-aug_list = [albumentations.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.2, rotate_limit=25),
-            albumentations.HorizontalFlip()]
-
-# FIXME CHANGE #6: Increased to 1 from 0.1
-shift_scale = 1
+aug_list = AugmentationList(albumentations.HorizontalFlip())
+shift_scale = 0.1
 
 
 """
@@ -164,4 +165,4 @@ loading_params = {'checkpoint_dir': None,
 
 
 if __name__ == '__main__':
-    print(alexnet.summary())
+    print(model.summary())

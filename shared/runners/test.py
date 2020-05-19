@@ -14,7 +14,7 @@ model_file = 'weights.58-2.73.hdf5'
 
 print("Loading Model & Generator")
 rundef.model.load_weights(checkpoint_dir + model_file)
-test_gen = get_test_gen(rundef.test_batch_size)
+test_gen = get_test_gen(rundef.test_batch_size, rundef.num_classes)
 
 preds = rundef.model.predict_generator(test_gen, max_queue_size=4, workers=4, verbose=1)
 

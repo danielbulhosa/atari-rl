@@ -4,7 +4,8 @@ import time
 import re
 import numpy as np
 import pickle
-from shared.generators.imagenet_sequence import AlexNetSequence
+from shared.generators.imagenet_sequence import ImagenetSequence
+from shared.generators.augmentation_list import AugmentationList
 import shared.definitions.paths as paths
 
 """Load pixel averages"""
@@ -39,15 +40,30 @@ code_index_map = {code: index for index, code in index_code_map.items()}
 # Get list of training and validation examples and labels
 training_dir = paths.training
 validation_dir = paths.validation
-num_classes = len(code_index_map)
 
 
-def get_paths_and_classes(root_dir, code_index_map=code_index_map):
+def get_paths_and_classes(root_dir, num_classes, code_index_map=code_index_map):
+    """
+    Get paths and classes for training data. This gets passed to custom
+    generator to pull image files.
+
+    :param root_dir: The directory from which to pull the images.
+    :param nclasses: Number of classes to pull. Set to less than 1,000 for debugging.
+    :param cim: The code index map used to map class codes to class indices.
+    :return: Paths to image files and corresponding array of one-hot encoded classes.
+    """
+
     classes = []
     example_paths = []
 
+    assert 0 < num_classes <= 1000, "Number of classes must be between 1 and 1000."
+
     class_dirs = [class_dir for class_dir in os.listdir(root_dir)
                   if class_dir[-4:] != ".tar"]
+    class_dirs = class_dirs if num_classes == 1000 else class_dirs[:num_classes]
+
+    # Reindex classes to fit reduced number of classes when applicable
+    code_index_map = code_index_map if num_classes == 1000 else dict(zip(class_dirs, range(num_classes)))
 
     for num, class_dir in enumerate(class_dirs):
 
@@ -68,23 +84,17 @@ def get_paths_and_classes(root_dir, code_index_map=code_index_map):
     return example_paths, one_hot_classes
 
 
-x_paths_train, y_labels_train = get_paths_and_classes(training_dir)
-x_paths_val, y_labels_val = get_paths_and_classes(validation_dir)
+def get_train_gen(batch_size, nclasses, num_batches, shift_scale, aug_list):
+    x_paths_train, y_labels_train = get_paths_and_classes(training_dir, nclasses)
+    train_indices = np.random.choice(np.arange(len(x_paths_train)), size=len(x_paths_train), replace=False)
+    # Shuffle parameter in fit generator only shuffles minibatch order. Without shuffling ahead
+    # of time mini-batches will tend to be extremely correlated (i.e. same class) which will make
+    # our gradient estimate biased.
+    x_paths_train, y_labels_train = np.array(x_paths_train)[train_indices].tolist(), y_labels_train[train_indices]
 
-train_indices = np.random.choice(np.arange(len(x_paths_train)), size=len(x_paths_train), replace=False)
-val_indices = np.random.choice(np.arange(len(x_paths_val)), size=len(x_paths_val), replace=False)
-
-# Shuffle parameter in fit generator only shuffles minibatch order. Without shuffling ahead
-# of time mini-batches will tend to be extremely correlated (i.e. same class) which will make
-# our gradient estimate biased.
-x_paths_train, y_labels_train = np.array(x_paths_train)[train_indices].tolist(), y_labels_train[train_indices]
-x_paths_val, y_labels_val = np.array(x_paths_val)[val_indices].tolist(), y_labels_val[val_indices]
-
-
-def get_train_gen(batch_size, shift_scale, aug_list):
-
-    return AlexNetSequence(x_paths_train,
-                           y_labels_train,
+    # Filter number of minibatches processed for debugging
+    return ImagenetSequence(x_paths_train if num_batches is None else x_paths_train[:batch_size * num_batches],
+                           y_labels_train if num_batches is None else y_labels_train[:batch_size * num_batches],
                            batch_size,
                            paths.training,
                            np.array(eigenvectors.tolist()),
@@ -96,10 +106,17 @@ def get_train_gen(batch_size, shift_scale, aug_list):
                            'train')
 
 
-def get_val_gen(batch_size):
+def get_val_gen(batch_size, nclasses, num_batches):
+    x_paths_val, y_labels_val = get_paths_and_classes(validation_dir, nclasses)
+    val_indices = np.random.choice(np.arange(len(x_paths_val)), size=len(x_paths_val), replace=False)
+    # Shuffle parameter in fit generator only shuffles minibatch order. Without shuffling ahead
+    # of time mini-batches will tend to be extremely correlated (i.e. same class) which will make
+    # our gradient estimate biased.
+    x_paths_val, y_labels_val = np.array(x_paths_val)[val_indices].tolist(), y_labels_val[val_indices]
 
-    return AlexNetSequence(x_paths_val,
-                           y_labels_val,
+    # Filter number of minibatches processed for debugging
+    return ImagenetSequence(x_paths_val if num_batches is None else x_paths_val[:batch_size * num_batches],
+                           y_labels_val if num_batches is None else y_labels_val[:batch_size * num_batches],
                            batch_size,
                            paths.validation,
                            np.array(eigenvectors.tolist()),
@@ -107,13 +124,19 @@ def get_val_gen(batch_size):
                            np.array(pixel_avg.tolist()),
                            np.array(stdev.tolist()),
                            0,
-                           [],
+                           AugmentationList(*[]),
                            'validate')
 
 
-def get_test_gen(batch_size):
+def get_test_gen(batch_size, nclasses):
+    x_paths_val, y_labels_val = get_paths_and_classes(validation_dir, nclasses)
+    val_indices = np.random.choice(np.arange(len(x_paths_val)), size=len(x_paths_val), replace=False)
+    # Shuffle parameter in fit generator only shuffles minibatch order. Without shuffling ahead
+    # of time mini-batches will tend to be extremely correlated (i.e. same class) which will make
+    # our gradient estimate biased.
+    x_paths_val, y_labels_val = np.array(x_paths_val)[val_indices].tolist(), y_labels_val[val_indices]
 
-    return AlexNetSequence(x_paths_val,
+    return ImagenetSequence(x_paths_val,
                            y_labels_val,
                            batch_size,  # Actual batch size is 10x because of TTAs
                            paths.validation,
@@ -122,5 +145,5 @@ def get_test_gen(batch_size):
                            np.array(pixel_avg.tolist()),
                            np.array(stdev.tolist()),
                            0,
-                           [],
+                           AugmentationList(*[]),
                            'test')

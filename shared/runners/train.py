@@ -31,7 +31,7 @@ else:
     epochs = rundef.num_epochs
 
 """Callbacks"""
-scheduler = call.ReduceLROnPlateau(**rundef.scheduler_params)
+scheduler = rundef.scheduler  # Scheduler class can vary
 tensorboard = call.TensorBoard(**rundef.tensorboard_params)
 checkpointer = call.ModelCheckpoint(**rundef.checkpointer_params)
 
@@ -41,8 +41,8 @@ garbage_collection = call.LambdaCallback(on_epoch_end=lambda epoch, logs: gc.col
 
 print("Create Generators")
 """Generators"""
-train_gen = get_train_gen(rundef.train_batch_size, rundef.shift_scale, rundef.aug_list)
-val_gen = get_val_gen(rundef.val_batch_size)
+train_gen = get_train_gen(rundef.train_batch_size, rundef.num_classes, rundef.num_batches, rundef.shift_scale, rundef.aug_list)
+val_gen = get_val_gen(rundef.val_batch_size, rundef.num_classes, rundef.num_batches)
 
 
 """ Model train code """

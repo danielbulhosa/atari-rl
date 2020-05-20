@@ -20,7 +20,7 @@ Model Definition
 version = 0
 num_classes = 1000
 num_datapoints = None
-epoch_repeats = 1
+steps_per_epoch = None
 
 k, n, alpha, beta = 2, 5, 1, 0.75
 lrn = lambda tensor: lrn_parametric(tensor, k, n, alpha, beta)

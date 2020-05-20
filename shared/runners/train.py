@@ -49,7 +49,7 @@ val_gen = get_val_gen(rundef.val_batch_size, rundef.num_classes, rundef.num_data
 print("Begin Training Model")
 rundef.model.fit_generator(train_gen,
                            epochs=rundef.num_epochs,
-                           steps_per_epoch=rundef.epoch_repeats,
+                           steps_per_epoch=rundef.steps_per_epoch,
                            validation_data=val_gen,
                            verbose=1,  # 0 in notebook, verbose doesn't slow down training, we checked
                            callbacks=[tensorboard,

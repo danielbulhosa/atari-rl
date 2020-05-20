@@ -19,7 +19,8 @@ Model Definition
 """
 version = 0
 num_classes = 1000
-num_batches = None
+num_datapoints = None
+epoch_repeats = 1
 
 init_reg = {
     'kernel_initializer': init.he_uniform(),

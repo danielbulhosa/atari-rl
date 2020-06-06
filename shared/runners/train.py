@@ -9,13 +9,13 @@ K.set_session(session=session)
 
 import keras.callbacks as call
 import gc
-from shared.generators.generators import get_train_gen, get_val_gen
 print("Assemble & Compile Model")
 import sys
 import importlib
-rundef_path = sys.argv[1]
-print(rundef_path)
-rundef = importlib.import_module(rundef_path)  # Run definition
+agent_path = sys.argv[1]
+print(agent_path)
+get_train_gen = importlib.import_module(agent_path + 'rungen.py')  # Run generator
+rundef = importlib.import_module(agent_path + 'rundef.py')  # Run definition
 
 """Model Loading (If Applicable)"""
 checkpoint_dir = rundef.loading_params['checkpoint_dir']
@@ -42,15 +42,12 @@ garbage_collection = call.LambdaCallback(on_epoch_end=lambda epoch, logs: gc.col
 print("Create Generators")
 """Generators"""
 train_gen = get_train_gen(rundef.train_batch_size, rundef.num_classes, rundef.num_datapoints, rundef.shift_scale, rundef.aug_list)
-val_gen = get_val_gen(rundef.val_batch_size, rundef.num_classes, rundef.num_datapoints)
-
 
 """ Model train code """
 print("Begin Training Model")
 rundef.model.fit_generator(train_gen,
                            epochs=rundef.num_epochs,
                            steps_per_epoch=rundef.steps_per_epoch,
-                           validation_data=val_gen,
                            verbose=1,  # 0 in notebook, verbose doesn't slow down training, we checked
                            callbacks=[tensorboard,
                                       scheduler,

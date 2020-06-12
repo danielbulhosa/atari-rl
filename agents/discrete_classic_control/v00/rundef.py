@@ -2,37 +2,41 @@ import keras.models as mod
 import keras.layers as lyr
 import keras.optimizers as opt
 import keras.metrics as met
+import numpy as np
 import keras.callbacks as call
 import tensorflow as tf
 import keras.losses as losses
-import keras.regularizers as reg
-import keras.initializers as init
 import shared.definitions.paths as paths
 import os
 from os import path
+from shared.generators.ennvironment_sequence import EnvironmentSequence
+import gym
 
 """
 Model Definition
 """
 version = 0
-num_classes = 1000  # FIXME - what of this do we need anymore?
 num_datapoints = None
 steps_per_epoch = None
 
-# FIXME - how common is it for RL agents to use regularization like this?
-init_reg = {
-    'kernel_initializer': init.he_uniform(),
-    'bias_initializer': init.Zeros(),
-    'kernel_regularizer': reg.l2(0),
-    'bias_regularizer': reg.l2(0)
-}
-
 # FIXME - add model used for agent in question
-out = None
-# FIXME - model will need two outs, a vector out for the actions and a scalar out for Q_a
-# FIXME - This means we need to pass a, but not as a feature vector, rather as an constant indexer
-# FIXME - Then we can calculate the loss using Q_a. The vector a won't contribute to the loss
-model = mod.Model(inputs=input, outputs=out)
+
+
+def get_Q_a(tensors):
+    import tensorflow as tf  # FIXME - janky, need a better solution
+    return tf.gather_nd(tensors[0], tensors[1], batch_dims=1)
+
+
+input_size = 4
+output_size = 2  # Same as number of actions
+state_input = lyr.Input((input_size, ))
+action_input = lyr.Input((1, ), dtype='int32')
+intermediate1 = lyr.Dense(100, activation='relu')(state_input)
+value_out = lyr.Dense(output_size, activation='relu')(intermediate1)
+# Note we use the action to index for the value used for the loss. It is NOT used as a feature for training,
+action_out = lyr.Lambda(get_Q_a,
+                        lambda input_shape: (1, ))([value_out, action_input])
+model = mod.Model(inputs=[state_input, action_input], outputs=[value_out, action_out])
 
 
 
@@ -45,23 +49,25 @@ used in the original paper.
 optimizer = opt.Adam(0.001)  # FIXME - do we want to change our optimizer?
 
 
-def loss(y_true, y_pred):
-    return losses.categorical_crossentropy(y_true, y_pred, from_logits=False, label_smoothing=0)
-
-
 model.compile(optimizer=optimizer,
-              loss=loss,
-              metrics=[None],  # FIXME - what metrics do we use?
+              loss=[None, losses.mean_squared_error],
+              metrics=[met.mean_squared_error],
+              loss_weights=[0, 1]
               )
 
 """
 Epochs & Batch Sizes
 """
-# FIXME - RL agents operate not on epochs but on iterations and episodes. How do we capture this?
+# We fixed the number of iterations that constitute an epoch in the generator,
+# Note that we do not need a validation generator hence not val batch size.
 num_epochs = 90
-train_batch_size = 256
-val_batch_size = 256
-test_batch_size = 26
+grad_update_frequency = 16
+train_batch_size = 32
+target_update_frequency = 10000
+action_repeat = 4
+gamma = 0.99
+epoch_length = 10000
+replay_buffer_size = 1000
 
 """
 Callback Params
@@ -69,6 +75,8 @@ Callback Params
 
 # FIXME - Need to use learning rate scheduler used in different papers?
 scheduler = None
+
+# FIXME - Create callback to calculate agent performance?
 
 log_dir = paths.agents + 'dqn/v{:02d}/logs'.format(version)
 checkpoint_dir = paths.agents + 'dqn/v{:02d}/checkpoints'.format(version)
@@ -97,6 +105,21 @@ loading_params = {'checkpoint_dir': None,
                   'model_file': None,
                   'epoch_start': None}
 
+train_gen = EnvironmentSequence(model,
+                                source_type='value',
+                                environment=gym.make("CartPole-v0"),
+                                batch_size=train_batch_size,
+                                grad_update_frequency=grad_update_frequency,
+                                target_update_frequency=target_update_frequency,
+                                action_repeat=action_repeat,
+                                gamma=gamma,
+                                epoch_length=epoch_length,
+                                replay_buffer_size=replay_buffer_size)
+
 
 if __name__ == '__main__':
     print(model.summary())
+    print(gym.make('CartPole-v0').reset())
+    for epoch in range(epoch_length):
+        print("Generator Test: Epoch {}".format(epoch))
+        train_gen[epoch]

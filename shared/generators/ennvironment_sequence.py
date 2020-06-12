@@ -49,8 +49,10 @@ class EnvironmentSequence(Sequence):
         self.iteration = 0
 
         # Keep track of state before getting minibatch, Initialize state buffers.
-        self.prev_observation, self.prev_done = self.environment.reset(), False
+        self.prev_observation, self.prev_action, self.prev_reward, self.prev_done = self.environment.reset(), None, None, False
         EnvironmentSequence.record_single(self.observation_buffer, self.prev_observation, self.replay_buffer_size + 1)
+        EnvironmentSequence.record_single(self.action_buffer, self.prev_action, self.replay_buffer_size)
+        EnvironmentSequence.record_single(self.reward_buffer, self.prev_reward, self.replay_buffer_size + 1)
         EnvironmentSequence.record_single(self.done_buffer, self.prev_done, self.replay_buffer_size + 1)
 
         # Model copies
@@ -85,7 +87,7 @@ class EnvironmentSequence(Sequence):
 
         # FIXME - what happens if we have more than one worker loading minibatches? Do we have asynchrony issues?
         iter = self.simulate()
-        assert (iter / self.grad_update_frequency) == idx, "Consistency check, iterations and minibatch index match"
+        assert (iter / self.grad_update_frequency - 1) == idx, "Consistency check, iterations and minibatch index don't match"
         return self.get_minibatch()
 
     def get_latest_observations(self, n):
@@ -95,7 +97,7 @@ class EnvironmentSequence(Sequence):
         """
         assert 0 < n <= self.replay_buffer_size, "Cannot get more observations than stored in buffer"
 
-        return self.observation_buffer[-n:], self.reward_buffer[-n:]
+        return self.observation_buffer[-n:]
 
     def get_action(self):
         """
@@ -111,8 +113,12 @@ class EnvironmentSequence(Sequence):
         """
         # FIXME - This will need to be different when the states are not the same as the observations.
         # FIXME- also note we assume `policy_source` is a Q function. This will not work with policy gradients then.
-        Q_a = self.current_model.predict(self.get_latest_observations(1))[0]
-        max_actions = np.where(Q_a == np.amax(Q_a)).flatten()
+        states = self.get_latest_observations(1)
+        actions = [0 for state in states]  # We don't actually care about indexing Q_0
+
+        # FIXME - list generated here is empty. Figure is something wrong with simulate method.
+        Q_a = self.current_model.predict([np.array(states), np.array(actions)])[0]
+        max_actions = np.argwhere(Q_a == np.amax(Q_a)).flatten()
         action = np.random.choice(max_actions)
 
         return action
@@ -140,13 +146,13 @@ class EnvironmentSequence(Sequence):
         :return:
         """
         # FIXME - for large enough buffers should we overwrite this method with one that serializes states???
-        # Note the observation we are saving is actually s_{t+1}. We keep an extra state so we can sample transitions.
+        # Note the observation we are saving is actually s_t. We keep an extra state so we can sample transitions.
         EnvironmentSequence.record_single(self.observation_buffer, observation, self.replay_buffer_size + 1)
-        # This is r_t
+        # This is r_{t-1}
         EnvironmentSequence.record_single(self.reward_buffer, reward, self.replay_buffer_size)
-        # This is a_t
+        # This is a_{t-1}
         EnvironmentSequence.record_single(self.action_buffer, action, self.replay_buffer_size)
-        # This denotes whether s_{t+1} is terminal
+        # This denotes whether s_{t} is terminal
         EnvironmentSequence.record_single(self.done_buffer, done, self.replay_buffer_size + 1)
 
     def simulate(self):
@@ -163,7 +169,7 @@ class EnvironmentSequence(Sequence):
 
         observation = self.prev_observation
         done = self.prev_done
-        action = None
+        action = self.prev_action
 
         # Simulate grad_update_frequency # of environment and action steps
         for iter in range(self.grad_update_frequency):
@@ -175,8 +181,7 @@ class EnvironmentSequence(Sequence):
 
             # Check if episode done, if so draw next state with reset method on env
             if done:
-                observation, reward, done, info = self.environment.reset()
-                action = None
+                observation, action, reward, done = self.environment.reset(), None, None, False
                 self.episode += 1
             # Otherwise only get action every action_repeat iterations or on restart and use action to get next state
             else:
@@ -189,9 +194,16 @@ class EnvironmentSequence(Sequence):
             # The record method takes care of recording observed states
             self.record(observation, reward, done, action)
 
-        self.prev_observation, self.prev_done = observation, done
+        self.prev_observation, self.prev_done, self.prev_action = observation, done, action
 
         return self.iteration
+
+    def get_states_length(self):
+        return min(len(self.observation_buffer), self.replay_buffer_size)
+
+    def sample_indices(self):
+
+        return np.random.choice(np.arange(1, self.get_states_length()), self.batch_size)
 
     def get_minibatch(self):
         """
@@ -209,16 +221,20 @@ class EnvironmentSequence(Sequence):
         # FIXME- also note we assume `policy_source` is a Q function. This will not work with policy gradients then.
 
         # We assume the paper does sampling with replacement. Makes the most sense if we're sampling a distribution.
-        sampled_indices = np.random.choice(np.arange(self.replay_buffer_size), self.batch_size)
+        sampled_indices = self.sample_indices()
 
-        states = np.array([self.observation_buffer[index] for index in sampled_indices])
-        next_states = np.array([self.observation_buffer[index + 1] for index in sampled_indices])
-        rewards = np.array([self.reward_buffer[index] for index in sampled_indices])
-        is_next_terminals = np.array([self.done_buffer[index + 1] for index in sampled_indices])
+        states = np.array([self.observation_buffer[index - 1] for index in sampled_indices])
+        actions = np.array([self.action_buffer[index] for index in sampled_indices])
+        next_states = np.array([self.observation_buffer[index] for index in sampled_indices])
+        rewards = np.array([self.reward_buffer[index] if self.reward_buffer[index] is not None else 0
+                            for index in sampled_indices])
+        is_next_terminals = np.array([self.done_buffer[index] for index in sampled_indices])
 
-        Q_max = np.max(self.target_model.predict(next_states), axis=1)
+        dummy_actions = np.array([0 for state in next_states])  # Needed because of structure of model
+        all_Q = self.target_model.predict([next_states, dummy_actions])
+        Q_max = np.max(all_Q[0], axis=1)
 
-        x = states
+        x = [states, actions]
         y = rewards + self.gamma * Q_max * np.logical_not(is_next_terminals)
 
         return x, y

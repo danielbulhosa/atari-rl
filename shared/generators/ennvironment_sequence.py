@@ -85,7 +85,8 @@ class EnvironmentSequence(Sequence):
 
         # FIXME - what happens if we have more than one worker loading minibatches? Do we have asynchrony issues?
         iter = self.simulate()
-        assert (iter / self.grad_update_frequency - 1) == idx, "Consistency check, iterations and minibatch index don't match"
+        assert (iter / self.grad_update_frequency - 1) % self.epoch_length == idx, \
+            "Consistency check, iterations and minibatch index don't match"
         return self.get_minibatch()
 
     def get_latest_observations(self, n):

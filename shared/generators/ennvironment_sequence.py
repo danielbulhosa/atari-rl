@@ -1,7 +1,6 @@
 from keras.utils import Sequence
 import numpy as np
-import copy
-
+import keras.models as mod
 
 class EnvironmentSequence(Sequence):
     def __init__(self, policy_source, source_type, environment, batch_size,
@@ -25,7 +24,6 @@ class EnvironmentSequence(Sequence):
           some experiences will be skipped and not contribute to the gradient calculation.
           If batch_size > grad_update_frequency more recent experiences get resampled.
         """
-        # FIXME - is the circularity of passing model to generator which gets passed to model itself a problem?
 
         self.policy_source = policy_source
         self.source_type = source_type
@@ -57,7 +55,7 @@ class EnvironmentSequence(Sequence):
 
         # Model copies
         self.current_model = policy_source
-        self.target_model = copy.deepcopy(self.current_model)  # FIXME: Not sure this will work at all...
+        self.target_model = mod.clone_model(self.current_model)
 
         assert source_type in ['value', 'policy'], "Allowed policy source types are `value` and `policy`"
 
@@ -116,7 +114,6 @@ class EnvironmentSequence(Sequence):
         states = self.get_latest_observations(1)
         actions = [0 for state in states]  # We don't actually care about indexing Q_0
 
-        # FIXME - list generated here is empty. Figure is something wrong with simulate method.
         Q_a = self.current_model.predict([np.array(states), np.array(actions)])[0]
         max_actions = np.argwhere(Q_a == np.amax(Q_a)).flatten()
         action = np.random.choice(max_actions)
@@ -128,7 +125,7 @@ class EnvironmentSequence(Sequence):
         Update target model.
         """
 
-        self.target_model = copy.deepcopy(self.current_model)  # FIXME: Not sure this will work at all...
+        self.target_model = mod.clone_model(self.current_model)
 
     @staticmethod
     def record_single(buffer, new_value, length_limit):
@@ -201,9 +198,29 @@ class EnvironmentSequence(Sequence):
     def get_states_length(self):
         return min(len(self.observation_buffer), self.replay_buffer_size)
 
+    def check_is_end_start_transition(self, index):
+        """
+        Check index does not map to an transition from
+        final state to initial. These are not allowed.
+        """
+
+        action = self.action_buffer[index]
+        reward = self.action_buffer[index]
+        both_not_none = action is not None and reward is not None
+        both_none = action is None and reward is None
+
+        assert both_none or both_not_none, "Consistency check, reward and action must both be `None` or not."
+
+        return both_none
+
     def sample_indices(self):
 
-        return np.random.choice(np.arange(1, self.get_states_length()), self.batch_size)
+        valid_indices = [index for index in range(1, self.get_states_length())
+                         if not self.check_is_end_start_transition(index)]
+
+        sampled_indices = np.random.choice(valid_indices, self.batch_size)
+
+        return sampled_indices
 
     def get_minibatch(self):
         """
@@ -226,8 +243,7 @@ class EnvironmentSequence(Sequence):
         states = np.array([self.observation_buffer[index - 1] for index in sampled_indices])
         actions = np.array([self.action_buffer[index] for index in sampled_indices])
         next_states = np.array([self.observation_buffer[index] for index in sampled_indices])
-        rewards = np.array([self.reward_buffer[index] if self.reward_buffer[index] is not None else 0
-                            for index in sampled_indices])
+        rewards = np.array([self.reward_buffer[index] for index in sampled_indices])
         is_next_terminals = np.array([self.done_buffer[index] for index in sampled_indices])
 
         dummy_actions = np.array([0 for state in next_states])  # Needed because of structure of model

@@ -87,7 +87,7 @@ tensorboard_params = {'log_dir': log_dir,
                       'write_grads': True,
                       'write_images': True}
 
-checkpointer_params = {'filepath': checkpoint_dir + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5',
+checkpointer_params = {'filepath': checkpoint_dir + '/weights.{epoch:02d}.hdf5',
                        'verbose': 1}
 
 """

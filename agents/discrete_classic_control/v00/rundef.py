@@ -19,12 +19,11 @@ version = 0
 num_datapoints = None
 steps_per_epoch = None
 
-# FIXME - add model used for agent in question
-
 
 def get_Q_a(tensors):
     import tensorflow as tf  # FIXME - janky, need a better solution
     return tf.gather_nd(tensors[0], tensors[1], batch_dims=1)
+
 
 def Q_a_shape(input_shape):
     return input_shape[1]

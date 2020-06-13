@@ -26,6 +26,9 @@ def get_Q_a(tensors):
     import tensorflow as tf  # FIXME - janky, need a better solution
     return tf.gather_nd(tensors[0], tensors[1], batch_dims=1)
 
+def Q_a_shape(input_shape):
+    return input_shape[1]
+
 
 input_size = 4
 output_size = 2  # Same as number of actions
@@ -34,18 +37,9 @@ action_input = lyr.Input((1, ), dtype='int32')
 intermediate1 = lyr.Dense(100, activation='relu')(state_input)
 value_out = lyr.Dense(output_size, activation='relu')(intermediate1)
 # Note we use the action to index for the value used for the loss. It is NOT used as a feature for training,
-action_out = lyr.Lambda(get_Q_a,
-                        lambda input_shape: (1, ))([value_out, action_input])
+action_out = lyr.Lambda(get_Q_a, Q_a_shape)([value_out, action_input])
 model = mod.Model(inputs=[state_input, action_input], outputs=[value_out, action_out])
 
-
-
-"""
-Optimizer, Loss, & Metrics
-
-Using zero built in decay and relying exclusively on the heuristic
-used in the original paper.
-"""
 optimizer = opt.Adam(0.001)  # FIXME - do we want to change our optimizer?
 
 
@@ -78,8 +72,8 @@ scheduler = None
 
 # FIXME - Create callback to calculate agent performance?
 
-log_dir = paths.agents + 'dqn/v{:02d}/logs'.format(version)
-checkpoint_dir = paths.agents + 'dqn/v{:02d}/checkpoints'.format(version)
+log_dir = paths.agents + 'discrete_classic_control/v{:02d}/logs'.format(version)
+checkpoint_dir = paths.agents + 'discrete_classic_control/v{:02d}/checkpoints'.format(version)
 
 if not path.isdir(checkpoint_dir):
     os.mkdir(checkpoint_dir)
@@ -115,7 +109,6 @@ train_gen = EnvironmentSequence(model,
                                 gamma=gamma,
                                 epoch_length=epoch_length,
                                 replay_buffer_size=replay_buffer_size)
-
 
 if __name__ == '__main__':
     print(model.summary())

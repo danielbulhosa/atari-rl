@@ -3,8 +3,9 @@ import numpy as np
 import keras.models as mod
 
 class EnvironmentSequence(Sequence):
-    def __init__(self, policy_source, source_type, environment, batch_size,
-                 grad_update_frequency, target_update_frequency, action_repeat,
+    def __init__(self, policy_source, source_type, environment,
+                 epsilon, batch_size, grad_update_frequency,
+                 target_update_frequency, action_repeat,
                  gamma, epoch_length, replay_buffer_size=None):
         """
         We initialize the EnvironmentSequence class
@@ -28,6 +29,7 @@ class EnvironmentSequence(Sequence):
         self.policy_source = policy_source
         self.source_type = source_type
         self.environment = environment
+        self.epsilon = epsilon  # This should be a function taking in the iteration number
         self.batch_size = batch_size
         self.grad_update_frequency = grad_update_frequency
         self.target_update_frequency = target_update_frequency
@@ -112,12 +114,20 @@ class EnvironmentSequence(Sequence):
         """
         # FIXME - This will need to be different when the states are not the same as the observations.
         # FIXME- also note we assume `policy_source` is a Q function. This will not work with policy gradients then.
-        states = self.get_latest_observations(1)
-        actions = [0 for state in states]  # We don't actually care about indexing Q_0
+        current_epsilon = self.epsilon(self.iteration)
 
-        Q_a = self.current_model.predict([np.array(states), np.array(actions)])[0]
-        max_actions = np.argwhere(Q_a == np.amax(Q_a)).flatten()
-        action = np.random.choice(max_actions)
+        is_greedy = np.random.binomial(1, 1 - current_epsilon)
+
+        if is_greedy:
+            states = self.get_latest_observations(1)
+            actions = [0 for state in states]  # We don't actually care about indexing Q_0
+
+            Q_a = self.current_model.predict([np.array(states), np.array(actions)])[0]
+            max_actions = np.argwhere(Q_a == np.amax(Q_a)).flatten()
+            action = np.random.choice(max_actions)
+
+        else:
+            action = self.environment.action_space.sample()
 
         return action
 

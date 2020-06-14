@@ -8,6 +8,7 @@ session = tf.Session(config=config)
 K.set_session(session=session)
 
 import keras.callbacks as call
+from shared.custom_callbacks.evaluate_agent import EvaluateAgentCallback
 import gc
 print("Assemble & Compile Model")
 import sys
@@ -33,6 +34,7 @@ else:
 scheduler = rundef.scheduler  # Scheduler class can vary
 tensorboard = call.TensorBoard(**rundef.tensorboard_params)
 checkpointer = call.ModelCheckpoint(**rundef.checkpointer_params)
+evaluate_agent = EvaluateAgentCallback(**{'tb_callback': tensorboard, **rundef.evaluator_params})
 
 # Added to address OOM Error - not sure if needed anymore
 # See: https://github.com/keras-team/keras/issues/3675
@@ -46,6 +48,7 @@ rundef.model.fit_generator(rundef.train_gen,
                            verbose=1,  # 0 in notebook, verbose doesn't slow down training, we checked
                            callbacks=[tensorboard,
                                       #scheduler,
+                                      evaluate_agent,
                                       checkpointer,
                                       garbage_collection,
                                       ],

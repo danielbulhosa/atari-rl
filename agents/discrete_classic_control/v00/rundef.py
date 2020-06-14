@@ -2,15 +2,13 @@ import keras.models as mod
 import keras.layers as lyr
 import keras.optimizers as opt
 import keras.metrics as met
-import numpy as np
-import keras.callbacks as call
-import tensorflow as tf
 import keras.losses as losses
 import shared.definitions.paths as paths
 import os
 from os import path
 from shared.generators.ennvironment_sequence import EnvironmentSequence
 import gym
+import copy
 
 """
 Model Definition
@@ -54,6 +52,9 @@ Epochs & Batch Sizes
 # We fixed the number of iterations that constitute an epoch in the generator,
 # Note that we do not need a validation generator hence not val batch size.
 num_epochs = 90
+environment = gym.make("CartPole-v0")
+train_exploration_schedule = (lambda iteration: 0.05)
+eval_exploration_schedule = (lambda iteration: 0.05)
 grad_update_frequency = 16
 train_batch_size = 32
 target_update_frequency = 10000
@@ -61,6 +62,8 @@ action_repeat = 4
 gamma = 0.99
 epoch_length = 10000
 replay_buffer_size = 1000
+eval_episodes = 30
+eval_num_samples = 1000
 
 """
 Callback Params
@@ -80,6 +83,11 @@ if not path.isdir(checkpoint_dir):
 if not path.isdir(log_dir):
     os.mkdir(log_dir)
 
+"""
+Callback and Generator Shared Parameters
+"""
+
+
 # Experiment directory format is {model}/{version}/{filetype}
 tensorboard_params = {'log_dir': log_dir,
                       'batch_size': train_batch_size,
@@ -88,6 +96,12 @@ tensorboard_params = {'log_dir': log_dir,
 
 checkpointer_params = {'filepath': checkpoint_dir + '/weights.{epoch:02d}.hdf5',
                        'verbose': 1}
+
+evaluator_params = {'environment': copy.deepcopy(environment),
+                    'gamma': gamma,
+                    'epsilon': eval_exploration_schedule,
+                    'num_episodes': eval_episodes,
+                    'num_init_samples': eval_num_samples}
 
 """
 Loading Params
@@ -100,8 +114,8 @@ loading_params = {'checkpoint_dir': None,
 
 train_gen = EnvironmentSequence(model,
                                 source_type='value',
-                                environment=gym.make("CartPole-v0"),
-                                epsilon=(lambda iteration: 0.05),
+                                environment=copy.deepcopy(environment),
+                                epsilon=train_exploration_schedule,
                                 batch_size=train_batch_size,
                                 grad_update_frequency=grad_update_frequency,
                                 target_update_frequency=target_update_frequency,

@@ -1,6 +1,8 @@
 from keras.utils import Sequence
 import numpy as np
 import keras.models as mod
+import shared.agent_methods.methods as agmeth
+
 
 class EnvironmentSequence(Sequence):
     def __init__(self, policy_source, source_type, environment,
@@ -114,22 +116,8 @@ class EnvironmentSequence(Sequence):
         """
         # FIXME - This will need to be different when the states are not the same as the observations.
         # FIXME- also note we assume `policy_source` is a Q function. This will not work with policy gradients then.
-        current_epsilon = self.epsilon(self.iteration)
-
-        is_greedy = np.random.binomial(1, 1 - current_epsilon)
-
-        if is_greedy:
-            states = self.get_latest_observations(1)
-            actions = [0 for state in states]  # We don't actually care about indexing Q_0
-
-            Q_a = self.current_model.predict([np.array(states), np.array(actions)])[0]
-            max_actions = np.argwhere(Q_a == np.amax(Q_a)).flatten()
-            action = np.random.choice(max_actions)
-
-        else:
-            action = self.environment.action_space.sample()
-
-        return action
+        states = self.get_latest_observations(1)
+        return agmeth.get_action(self.current_model, self.environment, states, self.epsilon, self.iteration)
 
     def update_target(self):
         """
@@ -257,9 +245,7 @@ class EnvironmentSequence(Sequence):
         rewards = np.array([self.reward_buffer[index] for index in sampled_indices])
         is_next_terminals = np.array([self.done_buffer[index] for index in sampled_indices])
 
-        dummy_actions = np.array([0 for state in next_states])  # Needed because of structure of model
-        all_Q = self.target_model.predict([next_states, dummy_actions])
-        Q_max = np.max(all_Q[0], axis=1)
+        Q_max = agmeth.evaluate_state(self.target_model, next_states)
 
         x = [states, actions]
         y = rewards + self.gamma * Q_max * np.logical_not(is_next_terminals)

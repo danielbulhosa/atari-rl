@@ -1,6 +1,6 @@
 from keras.utils import Sequence
 import numpy as np
-import keras.models as mod
+import copy
 import shared.agent_methods.methods as agmeth
 
 
@@ -8,7 +8,8 @@ class EnvironmentSequence(Sequence):
     def __init__(self, policy_source, source_type, environment,
                  epsilon, batch_size, grad_update_frequency,
                  target_update_frequency, action_repeat,
-                 gamma, epoch_length, replay_buffer_size=None):
+                 gamma, epoch_length, replay_buffer_size=None,
+                 replay_buffer_min=None):
         """
         We initialize the EnvironmentSequence class
         with a batch size and an environment to generate
@@ -39,6 +40,9 @@ class EnvironmentSequence(Sequence):
         self.gamma = gamma
         self.epoch_length = epoch_length
         self.replay_buffer_size = replay_buffer_size if replay_buffer_size is not None else batch_size
+        self.replay_buffer_min = replay_buffer_min if replay_buffer_min is not None else batch_size
+        self.initial_sims = self.replay_buffer_min // self.grad_update_frequency
+        self.initial_iterations = self.initial_sims * self.grad_update_frequency
 
         # Buffers
         self.reward_buffer = []
@@ -51,17 +55,22 @@ class EnvironmentSequence(Sequence):
         self.iteration = 0
 
         # Keep track of state before getting minibatch, Initialize state buffers.
-        self.prev_observation, self.prev_action, self.prev_reward, self.prev_done = self.environment.reset(), None, None, False
-        EnvironmentSequence.record_single(self.observation_buffer, self.prev_observation, self.replay_buffer_size + 1)
+        self.prev_observation, self.prev_action, self.prev_reward, self.prev_done = self.environment.reset(), None, None, None
+        EnvironmentSequence.record_single(self.observation_buffer, self.prev_observation, self.replay_buffer_size)
         EnvironmentSequence.record_single(self.action_buffer, self.prev_action, self.replay_buffer_size)
-        EnvironmentSequence.record_single(self.reward_buffer, self.prev_reward, self.replay_buffer_size + 1)
-        EnvironmentSequence.record_single(self.done_buffer, self.prev_done, self.replay_buffer_size + 1)
+        EnvironmentSequence.record_single(self.reward_buffer, self.prev_reward, self.replay_buffer_size)
+        EnvironmentSequence.record_single(self.done_buffer, self.prev_done, self.replay_buffer_size)
 
         # Model copies
         self.current_model = policy_source
-        self.target_model = mod.clone_model(self.current_model)
+        self.target_model = copy.deepcopy(self.current_model)
 
         assert source_type in ['value', 'policy'], "Allowed policy source types are `value` and `policy`"
+
+        # Initial simulations
+
+        for sim in range(self.initial_sims):
+            self.simulate()
 
     def __len__(self):
         """
@@ -89,7 +98,7 @@ class EnvironmentSequence(Sequence):
 
         # FIXME - what happens if we have more than one worker loading minibatches? Do we have asynchrony issues?
         iter = self.simulate()
-        assert (iter / self.grad_update_frequency - 1) % self.epoch_length == idx, \
+        assert ((iter - self.initial_iterations) / self.grad_update_frequency - 1) % self.epoch_length == idx, \
             "Consistency check, iterations and minibatch index don't match"
         return self.get_minibatch()
 
@@ -116,15 +125,22 @@ class EnvironmentSequence(Sequence):
         """
         # FIXME - This will need to be different when the states are not the same as the observations.
         # FIXME- also note we assume `policy_source` is a Q function. This will not work with policy gradients then.
-        states = self.get_latest_observations(1)
-        return agmeth.get_action(self.current_model, self.environment, states, self.epsilon, self.iteration)
+
+        # Do random policy until we have sufficiently filled the replay buffer
+        if self.iteration // self.grad_update_frequency < self.initial_sims:
+            action = self.environment.action_space.sample()
+
+        else:
+            states = self.get_latest_observations(1)
+            action = agmeth.get_action(self.current_model, self.environment, states, self.epsilon, self.iteration)
+
+        return action
 
     def update_target(self):
         """
         Update target model.
         """
-
-        self.target_model = mod.clone_model(self.current_model)
+        self.target_model = copy.deepcopy(self.current_model)
 
     @staticmethod
     def record_single(buffer, new_value, length_limit):
@@ -143,13 +159,13 @@ class EnvironmentSequence(Sequence):
         """
         # FIXME - for large enough buffers should we overwrite this method with one that serializes states???
         # Note the observation we are saving is actually s_t. We keep an extra state so we can sample transitions.
-        EnvironmentSequence.record_single(self.observation_buffer, observation, self.replay_buffer_size + 1)
+        EnvironmentSequence.record_single(self.observation_buffer, observation, self.replay_buffer_size)
         # This is r_{t-1}
         EnvironmentSequence.record_single(self.reward_buffer, reward, self.replay_buffer_size)
         # This is a_{t-1}
         EnvironmentSequence.record_single(self.action_buffer, action, self.replay_buffer_size)
         # This denotes whether s_{t} is terminal
-        EnvironmentSequence.record_single(self.done_buffer, done, self.replay_buffer_size + 1)
+        EnvironmentSequence.record_single(self.done_buffer, done, self.replay_buffer_size)
 
     def simulate(self):
         """
@@ -177,7 +193,7 @@ class EnvironmentSequence(Sequence):
 
             # Check if episode done, if so draw next state with reset method on env
             if done:
-                observation, action, reward, done = self.environment.reset(), None, None, False
+                observation, action, reward, done = self.environment.reset(), None, None, None
                 self.episode += 1
             # Otherwise only get action every action_repeat iterations or on restart and use action to get next state
             else:

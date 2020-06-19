@@ -17,11 +17,13 @@ rundef.model.load_weights(checkpoint_dir + model_file)
 env = rundef.environment
 epsilon = lambda iter: 0.00
 observation = env.reset()
+render = False
 actions = []
+
 for iter in range(10000):
-  #env.render()
+  if render:
+    env.render()
   action = agmeth.get_action(rundef.model, env, [observation], epsilon, iter)
-  #action = env.action_space.sample()
   actions.append(action)
   observation, reward, done, info = env.step(action)
 
@@ -29,9 +31,11 @@ for iter in range(10000):
     observation = env.reset()
 env.close()
 
-action_groupby = {0: 0, 1: 0}
-for action in actions:
-    action_groupby[action] += 1
+if __name__ == '__main__':
+  action_groupby = {action: 0 for action in range(env.action_space.n)}
 
-print(action_groupby)
+  for action in actions:
+      action_groupby[action] += 1
+
+  print(action_groupby)
 

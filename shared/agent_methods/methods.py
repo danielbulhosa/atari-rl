@@ -9,7 +9,6 @@ def evaluate_state(model, states):
     return Q_max
 
 
-# FIXME - replace equivalent code in environment and agent evaluation classes
 def get_action(model, environment, state, epsilon, iteration):
     current_epsilon = epsilon(iteration)  # Note epsilon is a method
 

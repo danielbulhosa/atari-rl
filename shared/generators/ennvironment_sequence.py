@@ -263,7 +263,8 @@ class EnvironmentSequence(Sequence):
 
         Q_max = agmeth.evaluate_state(self.target_model, next_states)
 
-        x = [states, actions]
-        y = rewards + self.gamma * Q_max * np.logical_not(is_next_terminals)
+        # We reshape the arrays so that it is clear to Tensorflow that each row is a datapoint
+        x = [states, actions.reshape(-1, 1)]
+        y = (rewards + self.gamma * Q_max * np.logical_not(is_next_terminals)).reshape(-1, 1)
 
         return x, y

@@ -1,46 +1,60 @@
-import tensorflow.keras.backend as K
-print("Create Generators")
-from shared.generators.generators import get_test_gen
-print("Assemble & Compile Model")
 import sys
 import importlib
-rundef_path = sys.argv[1]
-rundef = importlib.import_module(rundef_path)  # Run definition
-import shared.definitions.paths as paths
+import numpy as np
+import shared.agent_methods.methods as agmeth
+from gym import wrappers
 
-"""Model Loading"""
-checkpoint_dir = paths.models + 'alexnet/outputs/checkpoints_v20/'
-model_file = 'weights.58-2.73.hdf5'
+agent_path = sys.argv[1]
+print(agent_path)
+rundef = importlib.import_module(agent_path)  # Run definition
 
-print("Loading Model & Generator")
-rundef.model.load_weights(checkpoint_dir + model_file)
-test_gen = get_test_gen(rundef.test_batch_size, rundef.num_classes)
+"""Model Loading (If Applicable)"""
+checkpoint_dir = rundef.loading_params['test_checkpoint_dir']
+model_file =  rundef.loading_params['test_model_file']
+model_dir = rundef.loading_params['test_model_dir']
 
-preds = rundef.model.predict_generator(test_gen, max_queue_size=4, workers=4, verbose=1)
+assert model_file is not None and checkpoint_dir is not None, "Need to define model to test"
 
-repeats = 10
-mean_preds = None
+env = rundef.environment
+epsilon = lambda iter: 0.00
+gamma = 1
+num_episodes = 100
+observation = env.reset()
+render = False
+increment_model = False
+save_video = False
+checkpoint_start = 1
 
-for n in range(repeats):
-    if n == 0:
-        mean_preds = preds[n::repeats]
-    else:
-        mean_preds += preds[n::repeats]
-mean_preds = K.constant(mean_preds/repeats)
-mean_labels = K.constant(test_gen.y_labels)
+# By default only perfect cube recordings get saved. Callable passed here changes that.
+env = env if not save_video else wrappers.Monitor(env, model_dir + '/videos/', video_callable=lambda episode_id: True)
 
-print(mean_preds.get_shape().as_list())
-print(mean_labels.get_shape().as_list())
+total_reward = 0
+rewards = []
+first_episode = True
 
-acc1 = rundef.top_1_acc(mean_labels, mean_preds)
-acc5 = rundef.top_5_acc(mean_labels, mean_preds)
+for episode in range(num_episodes):
+    done = False
+    step = 0
+    if increment_model or first_episode:
+        print("\nCheckpoint #{}".format(checkpoint_start))
+        rundef.model.load_weights(checkpoint_dir + model_file.format(epoch=checkpoint_start))
+        checkpoint_start += 1
+        first_episode = False
 
-acc1_f = K.sum(acc1)/acc1.get_shape().as_list()[0]
-acc5_f = K.sum(acc5)/acc5.get_shape().as_list()[0]
+    observation = env.reset()
 
-# v24: 0.5913 0.81508, seems to at most gain 0.0001 and 0.001 top-1 and top-5 accuracy with eigenvector shift
-# v23: 0.58926 0.81532, but had much higher loss... thinking lower loss doesn't matter much then
-# v22: 0.56186 0.79306, lower, but the accuracies in Tensorboard were lower too so no surprise there
-# v20: 0.58338 0.8142, reducing LRN coefficient seems to have made a but of a difference in generalization then
-tf_session = K.get_session()
-print(acc1_f.eval(session=tf_session), acc5_f.eval(session=tf_session))
+    while not done:
+        if render:
+          env.render()
+
+        action = agmeth.get_action(rundef.model, env, [observation], epsilon, iter)
+        observation, reward, done, info = env.step(action)
+        total_reward += gamma**step * reward
+        step += 1
+
+    print("Total reward: {}".format(total_reward))
+    rewards.append(total_reward)
+    total_reward = 0
+
+print("Average Reward Over All Episodes: {}".format(np.mean(np.array(rewards))))
+env.close()

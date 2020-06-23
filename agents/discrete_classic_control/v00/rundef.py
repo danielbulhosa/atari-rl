@@ -115,7 +115,8 @@ Loading Params
 loading_params = {'checkpoint_dir': None,
                   'model_file': None,
                   'test_checkpoint_dir': checkpoint_dir,
-                  'test_model_file': None,  # Weight file used for testing performance
+                  'test_model_file': '/weights.{epoch:02d}.hdf5',  # Weight file used for testing performance
+                  'test_model_dir': os.path.dirname(os.path.realpath(__file__)),
                   'epoch_start': None}
 
 

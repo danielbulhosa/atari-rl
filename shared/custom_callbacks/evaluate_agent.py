@@ -10,6 +10,37 @@ class EvaluateAgentCallback(call.Callback):
                  epsilon=(lambda iteration: 0.05), num_episodes=30,
                  num_init_samples=1000):
 
+        """
+        Create a callback that evaluates the performance of
+        the agent being trained on the `environment` passed.
+
+        The performance is evaluated in two ways:
+          - Run agent for `num_episodes` episodes, average total
+            rewards across episodes.
+          - Sample `num_init_samples` initial states, calculate
+            value of those states, take their average.
+
+        The latter approach was used in the original Deep RL Atari
+        paper by D. Silver et al. as an alternative to the former
+        as it was found to be an estimator of model performance with
+        less variance.
+
+        :param environment: The environment the agent (model) is
+               being trained on.
+        :param gamma: The discount rate for rewards. Used for
+               calculating total episode rewards.
+        :param tb_callback: The Tensorboard callback. We use this
+               callback to write our evaluation metrics to the
+               Tensorboard.
+        :param epsilon: A function taking in the current iteration
+               and returning the epsilon used to choose between
+               exploration and exploitation.
+        :param num_episodes: The number of episodes to evaluate the
+               agent on.
+        :param num_init_samples: The number of initial states on which
+               to sample the policy value on.
+        """
+
         self.environment = environment
         self.gamma = gamma
         self.tb_callback = tb_callback
@@ -19,6 +50,15 @@ class EvaluateAgentCallback(call.Callback):
         self.step_number = 0
 
     def simulate_episodes(self, action_getter):
+        """
+        Code for simulating an episode. Used in evaluation
+        callback for simulating episodes with agent and
+        random policy.
+
+        :param action_getter: Method for getting actions
+        from agent.
+        :return: Average rewards and episode lengths.
+        """
 
         total_rewards = np.empty(self.num_episodes)
         episode_lenghts = np.empty(self.num_episodes)

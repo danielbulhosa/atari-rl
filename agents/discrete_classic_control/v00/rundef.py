@@ -135,4 +135,4 @@ train_gen = EnvironmentSequence(model,
 if __name__ == '__main__':
     model.summary()
     debug.sample_weights_and_gradients(model, train_gen)
-    debug.test_generator(train_gen, epoch_length)
+    debug.test_generator(train_gen)

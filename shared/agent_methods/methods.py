@@ -2,6 +2,12 @@ import numpy as np
 
 
 def evaluate_state(model, states):
+    """
+    Uses the `model` passed to function to calculate
+    max_a Q(s, a) where s is equal to the `states`
+    passed to the function.
+    """
+
     dummy_actions = np.array([0 for state in states])  # Needed because of structure of model
     all_Q = model.predict([states, dummy_actions])
     Q_max = np.max(all_Q[0], axis=1)
@@ -10,6 +16,21 @@ def evaluate_state(model, states):
 
 
 def get_action(model, environment, state, epsilon, iteration):
+    """
+    Uses `model` estimating the Q function to select
+    the next optimal action based on the current `state`.
+
+    :param model: A Keras model estimating the Q function.
+    :param environment: The Open AI gym class representing the environment.
+    :param state: The current state of the environment.
+    :param epsilon: A function taking in an iteration and returning the
+           current value of epsilon (i.e. the probability of choosing an
+           action randomly to explore).
+    :param iteration: The current iteration at which the simulations are in.
+           Used for scheduling epsilon,
+    :return: The next action taken by the agent.
+    """
+
     current_epsilon = epsilon(iteration)  # Note epsilon is a method
 
     is_greedy = np.random.binomial(1, 1 - current_epsilon)

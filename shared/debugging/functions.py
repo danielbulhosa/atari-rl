@@ -4,6 +4,15 @@ from keras import layers as lyr
 
 
 def sample_weights_and_gradients(model, train_gen):
+    """
+    Takes a model and a minibatch of training data
+    and prints out weights, gradients, and loss tensors.
+
+    Useful for debugging silent gradient and weight problems.
+
+    :param model: The model to debug.
+    :param train_gen: The generator used for getting training data.
+    """
 
     """Check that gradients propagate correctly with indexing"""
     # an input layer to feed labels
@@ -61,7 +70,6 @@ def sample_weights_and_gradients(model, train_gen):
         print("\nMean Squared Errors:")
         print(evaluated_mse)
 
-
         for layer in model.layers:
             # Skip indexing input layer
             if layer.dtype == 'int32':
@@ -87,11 +95,16 @@ def sample_weights_and_gradients(model, train_gen):
             print(evaluated_gradients)
 
 
-def test_generator(train_gen, epoch_length):
+def test_generator(train_gen):
+    """
+    Runs training generator for defined number of epochs
+    to check no minibatches raise errors.
 
-    """Check that experience sequence class works"""
+    :param train_gen: The generator creating training data.
+    """
+
     print("\n")
-    for epoch in range(1, epoch_length):
+    for epoch in range(1, train_gen.epoch_length):
         break  # FIXME, remove break
         print("Generator Test: Epoch {}".format(epoch))
         train_gen[epoch]

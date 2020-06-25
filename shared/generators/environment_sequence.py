@@ -9,7 +9,7 @@ class EnvironmentSequence(Sequence):
                  epsilon, batch_size, grad_update_frequency,
                  target_update_frequency, action_repeat,
                  gamma, epoch_length, replay_buffer_size=None,
-                 replay_buffer_min=None):
+                 replay_buffer_min=None, use_double_dqn=False):
         """
         We initialize the EnvironmentSequence class
         with a batch size and an environment to generate
@@ -41,8 +41,13 @@ class EnvironmentSequence(Sequence):
         self.epoch_length = epoch_length
         self.replay_buffer_size = replay_buffer_size if replay_buffer_size is not None else batch_size
         self.replay_buffer_min = replay_buffer_min if replay_buffer_min is not None else batch_size
+        self.use_double_dqn = use_double_dqn
+        self.use_target_model = self.target_update_frequency is not None
         self.initial_sims = self.replay_buffer_min // self.grad_update_frequency
         self.initial_iterations = self.initial_sims * self.grad_update_frequency
+
+        if self.use_double_dqn:
+            assert self.use_target_model, "`use_double_dqn` cannot be set to `True` if no target model used"
 
         # Buffers
         self.reward_buffer = []
@@ -63,7 +68,7 @@ class EnvironmentSequence(Sequence):
 
         # Model copies
         self.current_model = policy_source
-        self.target_model = copy.deepcopy(self.current_model)
+        self.target_model = copy.deepcopy(self.current_model) if self.use_target_model else self.current_model
 
         assert source_type in ['value', 'policy'], "Allowed policy source types are `value` and `policy`"
 
@@ -140,7 +145,13 @@ class EnvironmentSequence(Sequence):
         """
         Update target model.
         """
-        self.target_model = copy.deepcopy(self.current_model)
+        self.target_model = copy.deepcopy(self.current_model) if self.use_target_model else self.current_model
+
+    def double_dqn_model(self):
+        if self.use_double_dqn:
+            return self.target_model
+        else:
+            return None
 
     @staticmethod
     def record_single(buffer, new_value, length_limit):
@@ -188,7 +199,9 @@ class EnvironmentSequence(Sequence):
             self.iteration += 1
 
             # Update target after the appropiate number of iterations
-            if (self.iteration % self.target_update_frequency) == 0:
+            if self.use_target_model and (self.iteration % self.target_update_frequency) == 0\
+                    and self.iteration > self.initial_iterations:
+
                 self.update_target()
 
             # Check if episode done, if so draw next state with reset method on env
@@ -261,7 +274,7 @@ class EnvironmentSequence(Sequence):
         rewards = np.array([self.reward_buffer[index] for index in sampled_indices])
         is_next_terminals = np.array([self.done_buffer[index] for index in sampled_indices])
 
-        Q_max = agmeth.evaluate_state(self.target_model, next_states)
+        Q_max = agmeth.evaluate_state(self.target_model, next_states, self.double_dqn_model())
 
         # We reshape the arrays so that it is clear to Tensorflow that each row is a datapoint
         x = [states, actions.reshape(-1, 1)]

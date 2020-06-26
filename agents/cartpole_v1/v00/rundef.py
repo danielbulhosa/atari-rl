@@ -57,7 +57,7 @@ Epochs & Batch Sizes
 # We fixed the number of iterations that constitute an epoch in the generator,
 # Note that we do not need a validation generator hence not val batch size.
 num_epochs = 90
-environment = gym.make("CartPole-v0")
+environment = gym.make("CartPole-v1")
 train_exploration_schedule = (lambda iteration: 0.1)
 eval_exploration_schedule = (lambda iteration: 0.05)
 grad_update_frequency = 1
@@ -78,8 +78,8 @@ Callback Params
 # FIXME - Need to use learning rate scheduler used in different papers?
 scheduler = None
 
-log_dir = paths.agents + 'cartpole_v0/v{:02d}/logs'.format(version)
-checkpoint_dir = paths.agents + 'cartpole_v0/v{:02d}/checkpoints'.format(version)
+log_dir = paths.agents + 'cartpole_v1/v{:02d}/logs'.format(version)
+checkpoint_dir = paths.agents + 'cartpole_v1/v{:02d}/checkpoints'.format(version)
 
 if not path.isdir(checkpoint_dir):
     os.mkdir(checkpoint_dir)

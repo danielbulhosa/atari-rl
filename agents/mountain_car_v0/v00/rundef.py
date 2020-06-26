@@ -31,12 +31,12 @@ def Q_a_shape(input_shape):
 
 kernel_init = init.RandomUniform(-0.1, 0.1)
 
-input_size = 4
-output_size = 2  # Same as number of actions
+input_size = 2
+output_size = 3  # Same as number of actions
 state_input = lyr.Input((input_size, ))
 action_input = lyr.Input((1, ), dtype='int32')
-intermediate1 = lyr.Dense(24, activation='relu', kernel_initializer=kernel_init)(state_input)
-intermediate2 = lyr.Dense(24, activation='relu', kernel_initializer=kernel_init)(intermediate1)
+intermediate1 = lyr.Dense(256, activation='relu', kernel_initializer=kernel_init)(state_input)
+intermediate2 = lyr.Dense(256, activation='relu', kernel_initializer=kernel_init)(intermediate1)
 value_out = lyr.Dense(output_size, activation='linear', kernel_initializer=kernel_init)(intermediate2)
 # Note we use the action to index for the value used for the loss. It is NOT used as a feature for training,
 action_out = lyr.Lambda(get_Q_a, Q_a_shape)([value_out, action_input])
@@ -54,11 +54,12 @@ model.compile(optimizer=optimizer,
 """
 Epochs & Batch Sizes
 """
+
 # We fixed the number of iterations that constitute an epoch in the generator,
 # Note that we do not need a validation generator hence not val batch size.
-num_epochs = 90
-environment = gym.make("CartPole-v0")
-train_exploration_schedule = (lambda iteration: 0.1)
+num_epochs = 200
+environment = gym.make("MountainCar-v0")
+train_exploration_schedule = (lambda iteration: max(0.1, 1 - (iteration - replay_buffer_min)/(2 * replay_buffer_min)))
 eval_exploration_schedule = (lambda iteration: 0.05)
 grad_update_frequency = 1
 train_batch_size = 512
@@ -78,8 +79,8 @@ Callback Params
 # FIXME - Need to use learning rate scheduler used in different papers?
 scheduler = None
 
-log_dir = paths.agents + 'cartpole_v0/v{:02d}/logs'.format(version)
-checkpoint_dir = paths.agents + 'cartpole_v0/v{:02d}/checkpoints'.format(version)
+log_dir = paths.agents + 'mountain_car_v0/v{:02d}/logs'.format(version)
+checkpoint_dir = paths.agents + 'mountain_car_v0/v{:02d}/checkpoints'.format(version)
 
 if not path.isdir(checkpoint_dir):
     os.mkdir(checkpoint_dir)
@@ -131,9 +132,11 @@ train_gen = EnvironmentSequence(model,
                                 gamma=gamma,
                                 epoch_length=epoch_length,
                                 replay_buffer_size=replay_buffer_size,
-                                replay_buffer_min=replay_buffer_min)
+                                replay_buffer_min=replay_buffer_min,
+                                use_double_dqn=False)
 
 if __name__ == '__main__':
     model.summary()
+    model.load_weights('checkpoints/weights.09.hdf5')
     debug.sample_weights_and_gradients(model, train_gen)
     debug.test_generator(train_gen)

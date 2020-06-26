@@ -31,8 +31,8 @@ def Q_a_shape(input_shape):
 
 kernel_init = init.RandomUniform(-0.1, 0.1)
 
-input_size = 4
-output_size = 2  # Same as number of actions
+input_size = 6
+output_size = 3  # Same as number of actions
 state_input = lyr.Input((input_size, ))
 action_input = lyr.Input((1, ), dtype='int32')
 intermediate1 = lyr.Dense(24, activation='relu', kernel_initializer=kernel_init)(state_input)
@@ -57,7 +57,7 @@ Epochs & Batch Sizes
 # We fixed the number of iterations that constitute an epoch in the generator,
 # Note that we do not need a validation generator hence not val batch size.
 num_epochs = 90
-environment = gym.make("CartPole-v0")
+environment = gym.make("Acrobot-v1")
 train_exploration_schedule = (lambda iteration: 0.1)
 eval_exploration_schedule = (lambda iteration: 0.05)
 grad_update_frequency = 1
@@ -78,8 +78,8 @@ Callback Params
 # FIXME - Need to use learning rate scheduler used in different papers?
 scheduler = None
 
-log_dir = paths.agents + 'cartpole_v0/v{:02d}/logs'.format(version)
-checkpoint_dir = paths.agents + 'cartpole_v0/v{:02d}/checkpoints'.format(version)
+log_dir = paths.agents + 'acrobot_v1/v{:02d}/logs'.format(version)
+checkpoint_dir = paths.agents + 'acrobot_v1/v{:02d}/checkpoints'.format(version)
 
 if not path.isdir(checkpoint_dir):
     os.mkdir(checkpoint_dir)

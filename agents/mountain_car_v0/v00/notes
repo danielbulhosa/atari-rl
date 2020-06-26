@@ -1,0 +1,15 @@
+Same as the model used for cartpole-v0 but:
+
+- Using hidden layers of width 256 instead of 24. This is
+  what was used by one of the models in the leaderboard.
+  We initially struggled to fit the smaller model so we
+  though we'd try this bigger one that worked for someone
+  else: https://github.com/harshitandro/Deep-Q-Network/blob/master/agent/ddqn_agent.py
+
+- Add an exploration schedule that anneals epsilon from 1 to 0.1
+  over 20,000 iterations, or about 100 episodes.
+
+We were able to get the optimal policy after about 220 episodes.
+This is much better than the agent cited above, which using the
+same model took ~600. This gives us further confidence in the
+robustness of our approach and framework.

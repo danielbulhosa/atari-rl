@@ -1,0 +1,9 @@
+Increase replay memory by 10x, reduce evaluation episodes
+and initial states sampled by 10x. The latter is more in
+line with how evaluation is done for the Open AI Gym
+leaderboards.
+
+Increased experience replay may have sped up learning a bit
+and helped reduce divergece a bit, but nothing dramatic. This
+iteration was a little less stable on optimality than the previous
+trial, v02.

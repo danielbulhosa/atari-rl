@@ -1,0 +1,10 @@
+Same as v04 but increasing both frequency of updates
+and minibatch size by 4x again.
+
+This agent is even better than v04! It is significantly
+more stable in the long tail of training while still
+maintaining comparable performance. The reward, loss,
+and initial value curves for this agent are very smooth.
+
+We'll try increasin the speed of learning next by increasing
+the learning rate.

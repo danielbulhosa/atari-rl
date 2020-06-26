@@ -1,0 +1,10 @@
+Same as v06, but returning to the 0.001 learning rate
+which was more stable. We've also implemented double
+DQN and we are using a target model update frequency
+of 1000 iterations.
+
+We found running this that the divergence of the value
+function was much more controlled but that the convergence
+of the policy was much slower. Convergence was also not
+nearly as stable as it was without a target model -- it
+seems that the use of a target model creates instability...

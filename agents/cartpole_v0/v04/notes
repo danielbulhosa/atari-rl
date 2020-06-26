@@ -1,0 +1,16 @@
+Increase frequency of gradient updates by 4x,
+and also increase minibatch size by 4x. More
+gradient updates should lead to quicker learning,
+and larger minibatches should lead to more stable
+gradient estimates (and hence also faster learning).
+
+By far this has been the best agent so far. It learn
+the quickest and the most robustly! The learn curve
+was extremely smooth relative to previous trials.
+
+Over time though the value function gets significantly
+overestimated which then makes performance less consistent
+as training continues. This is likely because inflated Q
+values drown the signal from the rewards. We think implementing
+some version of Double DQN along with what we're currently doing
+will get us the best of both worlds.

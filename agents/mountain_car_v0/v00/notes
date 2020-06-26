@@ -1,0 +1,17 @@
+We found agent cartpole_v0/v05 to be the fastest learner
+(even though it significantly overestimates the Q function
+over time). We are using it as a starting point for this
+environment.
+
+Running into issues with this environment where the agent
+isn't learning. Not sure why... The agent seems to learn
+to go up a single direction but not to oscillate back and
+forth. It doesn't often pick the "0" action. We saw something
+similar with the "Acrobot-v0" environment (which also has three
+actions) but in this environment focusing only on one action
+did not limit the agent's ability to solve the environment.
+
+It turns out the agent can learn but it takes really long
+because of the reward structure. It took about 400 episodes
+for it to figure it out. We will try modifying our hyperparameters
+to see if we can get it to learn faster.

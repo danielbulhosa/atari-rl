@@ -1,0 +1,4 @@
+We found agent cartpole_v0/v05 to be the fastest learner
+(even though it significantly overestimates the Q function
+over time). We are using it as a starting point for this
+environment.

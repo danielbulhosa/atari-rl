@@ -1,0 +1,8 @@
+We found agent cartpole_v0/v05 to be the fastest learner
+(even though it significantly overestimates the Q function
+over time). We are using it as a starting point for this
+environment.
+
+Best checkpoint was #35 which achieves an average score of
+about -84 which is decent. A better model would probably do
+significantly better.

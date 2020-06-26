@@ -1,0 +1,12 @@
+Same as v00 but:
+
+- Reduce epoch length, target update frequency,
+  replay buffer mininum, and replay buffer size
+  by 10x.
+- Set gamma equal to 1 since this environment always
+  terminates at 200 steps so no need to discount.
+
+Our hope in reducing all of the aforementioned quantities
+by 10x is to trade-off stability for learning speed. In
+practice it took longer to learn and the value function
+diverged ridiculously.

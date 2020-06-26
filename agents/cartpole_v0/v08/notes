@@ -1,0 +1,13 @@
+Reduce target model update frequency from v07 from
+1000 to 100.
+
+We found the convergence to be much faster (closer
+to what we saw in v05) but we also got back the same
+Q value divergence from that version. The divergence
+was a bit stabilized by the target function from double
+DQN but it still diverged nonetheless.
+
+Will try a target update frequency between the two we've
+tried to see if we can strike a balance between the two
+that learns reasonably quickly but that doesn't have its
+Q function diverge dramatically.

@@ -1,0 +1,8 @@
+Same as v09, v08, and v07 but with a target model
+update frequency of 250.
+
+The value function diverged more slowly but it still
+went beyond the optimal value. It didn't converge as
+nicely as the 500 case but converged better than the
+1000 case. We think an update frequency between 250
+and 500 probably makes sense.

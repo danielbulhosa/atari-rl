@@ -1,0 +1,14 @@
+By increasing the batch size from 32 to 512
+we've increased it by 16x. We are conmesurately
+increasing the learning rate by 10x to see if
+we can speed up learning without losing the
+stability we've gained.
+
+This seems to be too fast, it takes longer to
+minimize the objective function. A successful
+policy is eventually attained but the loss and
+Q function diverge significantly faster. Once
+attained the solution seems to be stable. It may
+be worth revisiting this configuration when we've
+gotten the Q value divergence issue better under
+control.

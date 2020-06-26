@@ -1,0 +1,15 @@
+Same as previous but eliminate separate target model
+altogether. This should speed up the solution but it
+should lead to more instability.
+
+In practice it converged faster than v01 the value function
+diverged in about the same manner and as aggressively. We
+suspect the divergence is because of the short experience
+replay. On the positive side the model was more often close
+to the optimal policy than when we had a target model. It
+thus appears that converge to optimality was more robust in
+this case. We'll try re-increasing the experience replay next.
+
+Copying the model is expensive computationally so removing the
+target model update speeds training in terms of wall clock time
+siginificantly.

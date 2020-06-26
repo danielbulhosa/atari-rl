@@ -1,0 +1,9 @@
+Doing double DQN like in v08 and v07 but with a
+target update frequency of 500.
+
+This case ended up being much closer to the 1000
+case than the 100 case in terms of value function
+divergence. However the convergence was much faster.
+The value function didn't quite converge to the true
+optimal values though. We will try a higher update
+frequency.

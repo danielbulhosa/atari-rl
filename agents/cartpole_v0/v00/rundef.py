@@ -78,8 +78,8 @@ Callback Params
 # FIXME - Need to use learning rate scheduler used in different papers?
 scheduler = None
 
-log_dir = paths.agents + 'discrete_classic_control/v{:02d}/logs'.format(version)
-checkpoint_dir = paths.agents + 'discrete_classic_control/v{:02d}/checkpoints'.format(version)
+log_dir = paths.agents + 'cartpole_v0/v{:02d}/logs'.format(version)
+checkpoint_dir = paths.agents + 'cartpole_v0/v{:02d}/checkpoints'.format(version)
 
 if not path.isdir(checkpoint_dir):
     os.mkdir(checkpoint_dir)

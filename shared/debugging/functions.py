@@ -1,6 +1,7 @@
 from keras import backend as K
 import tensorflow as tf
 from keras import layers as lyr
+import numpy as np
 
 
 def sample_weights_and_gradients(model, train_gen):

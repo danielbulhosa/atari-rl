@@ -1,16 +1,41 @@
 import numpy as np
 
 
-def evaluate_state(model, states):
+def evaluate_state(model, states, target_model=None):
     """
     Uses the `model` passed to function to calculate
     max_a Q(s, a) where s is equal to the `states`
     passed to the function.
+
+    If target model is not None a target model is
+    used to calculate values based on the greedy
+    actions selected by the first model. This is
+    Double DQN.
     """
 
     dummy_actions = np.array([0 for state in states])  # Needed because of structure of model
     all_Q = model.predict([states, dummy_actions])
-    Q_max = np.max(all_Q[0], axis=1)
+
+    if target_model is None:
+        Q_max = np.max(all_Q[0], axis=1)
+
+    else:
+        # Max actions may generically have multiple rows for the same state if
+        # the state has more than one maximum action
+        max_actions = np.argwhere(all_Q[0] == np.amax(all_Q[0], axis=1).reshape(-1, 1))
+        max_action_per_state = {index: [] for index in range(len(states))}
+
+        # Go through actions and collect maxes
+        for action in max_actions:
+            max_action_per_state[action[0]].append(action[1])
+
+        # Sample max actions per state
+        actions = []
+        for state_index, action_list in max_action_per_state.items():
+            actions.append(np.random.choice(action_list))
+
+        # Use one model to get action and another to get values: Double DQN
+        Q_max = target_model.predict([states, np.array(actions)])[1].reshape(-1)
 
     return Q_max
 
@@ -39,8 +64,8 @@ def get_action(model, environment, state, epsilon, iteration):
         actions = [0 for state in state]  # We don't actually care about indexing Q_0
         assert len(state) == 1, "Only one state should be passed to this method"
 
-        # Note in practice
         Q_a = model.predict([np.array(state), np.array(actions)])[0]
+
         # Note we need to reshape because output is 2D array.
         # Each 2D Array entry is the 2D index of a max. Since
         # We only pass one state max_states should have length

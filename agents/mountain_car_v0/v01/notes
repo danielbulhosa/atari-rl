@@ -1,0 +1,6 @@
+Same as v00 but .speeding up the exploration schedule. The
+exploration schedule nearing termination in v00
+seemed to align with the agent getting out of the
+valley. We hope that a faster (but still conservative)
+learning schedule will help the agent learn more
+quickly.

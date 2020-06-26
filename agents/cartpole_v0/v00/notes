@@ -1,10 +1,25 @@
-Same as v04 but increasing both frequency of updates
-and minibatch size by 4x again.
+This was the best version of the cartpole_v0 agent
+that we created. The key design considerations were:
 
-This agent is even better than v04! It is significantly
-more stable in the long tail of training while still
-maintaining comparable performance. The reward, loss,
-and initial value curves for this agent are very smooth.
+- Not using double DQN or a target model at all because
+  it significantly slows down training, convergence, and
+  makes convergence to the optimum policy unstable. This
+  makes the value function fitted be significantly over-
+  estimated but the agent converges to the optimal policy
+  much quicker.
+- Don't have any action repetitions, have larger minibatches
+  (512) and do gradient updates every single simulation stpe.
+  The first and third design choices speed up training signi-
+  ficantly. The last choice makes convergence to the optimum
+  policy much more stable.
 
-We'll try increasin the speed of learning next by increasing
-the learning rate.
+We estimated it took about 100-110 episodes for the agent to
+converge to the optimal policy. This is in the middle of the
+range for leaderboard scores, so this gives us confidence
+about our learning framework.
+
+We used the simple network here for our problem:
+https://towardsdatascience.com/cartpole-introduction-to-reinforcement-learning-ed0eb5b58288#f94f
+Much more sophisticated networks were used in the
+leaderboard so we're not surprised it took longer for our agent
+to learn the optimal policy.

@@ -1,4 +1,10 @@
-We found agent cartpole_v0/v05 to be the fastest learner
-(even though it significantly overestimates the Q function
-over time). We are using it as a starting point for this
-environment.
+We use the same agent as we used for cartpole-v0, which
+worked pretty well in that case. It worked pretty decently
+in this one as well.
+
+As there are no leaderboard results for this environment
+we do not compare our score to any others. It took significantly
+longer for the agent to solve this environment. We think
+the small network likely has a hard time modeling Q values
+over longer episodes. A better model we think would do much
+better.

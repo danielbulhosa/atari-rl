@@ -15,7 +15,7 @@ import copy
 """
 Model Definition
 """
-version = 1
+version = 0
 num_datapoints = None
 steps_per_epoch = None
 
@@ -54,9 +54,6 @@ model.compile(optimizer=optimizer,
 """
 Epochs & Batch Sizes
 """
-# FIXME - have tried: 10x reduction in replay memory, more complex models, increase epsilon, gamma -> 0.99
-# FIXME - double DQN with 500 target update frequency, decrease and learning rate by 10x, reduce grad update freq
-# FIXME - and minibatch size. Seems like model always prefers only one action.... WHY?1
 
 # We fixed the number of iterations that constitute an epoch in the generator,
 # Note that we do not need a validation generator hence not val batch size.

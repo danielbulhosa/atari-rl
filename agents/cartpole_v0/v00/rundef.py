@@ -15,7 +15,7 @@ import copy
 """
 Model Definition
 """
-version = 5
+version = 0
 num_datapoints = None
 steps_per_epoch = None
 

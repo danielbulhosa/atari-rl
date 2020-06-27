@@ -2,17 +2,16 @@ from keras.utils import Sequence
 import numpy as np
 import copy
 import shared.agent_methods.methods as agmeth
-from abc import ABCMeta, abstractmethod
 
 
-class SynchronousSequence(Sequence, metaclass=ABCMeta):
+class EnvironmentSequence(Sequence):
     def __init__(self, policy_source, source_type, environment,
                  epsilon, batch_size, grad_update_frequency,
                  target_update_frequency, action_repeat,
                  gamma, epoch_length, replay_buffer_size=None,
                  replay_buffer_min=None, use_double_dqn=False):
         """
-        We initialize the SynchronousSequence class
+        We initialize the EnvironmentSequence class
         with a batch size and an environment to generate
         data from. The generator will have a pointer to
         the model object in order to generate policy
@@ -62,10 +61,10 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
 
         # Keep track of state before getting minibatch, Initialize state buffers.
         self.prev_observation, self.prev_action, self.prev_reward, self.prev_done = self.environment.reset(), None, None, None
-        SynchronousSequence.record_single(self.observation_buffer, self.prev_observation, self.replay_buffer_size)
-        SynchronousSequence.record_single(self.action_buffer, self.prev_action, self.replay_buffer_size)
-        SynchronousSequence.record_single(self.reward_buffer, self.prev_reward, self.replay_buffer_size)
-        SynchronousSequence.record_single(self.done_buffer, self.prev_done, self.replay_buffer_size)
+        EnvironmentSequence.record_single(self.observation_buffer, self.prev_observation, self.replay_buffer_size)
+        EnvironmentSequence.record_single(self.action_buffer, self.prev_action, self.replay_buffer_size)
+        EnvironmentSequence.record_single(self.reward_buffer, self.prev_reward, self.replay_buffer_size)
+        EnvironmentSequence.record_single(self.done_buffer, self.prev_done, self.replay_buffer_size)
 
         # Model copies
         self.current_model = policy_source
@@ -108,15 +107,15 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
             "Consistency check, iterations and minibatch index don't match"
         return self.get_minibatch()
 
-    @abstractmethod
     def get_latest_observations(self, n):
         """
         Gets the latest n observations and
         rewards.
         """
-        pass
+        assert 0 < n <= self.replay_buffer_size, "Cannot get more observations than stored in buffer"
 
-    @abstractmethod
+        return self.observation_buffer[-n:]
+
     def get_action(self):
         """
         Gets next action either from value function or
@@ -129,7 +128,18 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
 
         :return: Next action.
         """
-        pass
+        # FIXME - This will need to be different when the states are not the same as the observations.
+        # FIXME- also note we assume `policy_source` is a Q function. This will not work with policy gradients then.
+
+        # Do random policy until we have sufficiently filled the replay buffer
+        if self.iteration // self.grad_update_frequency < self.initial_sims:
+            action = self.environment.action_space.sample()
+
+        else:
+            states = self.get_latest_observations(1)
+            action = agmeth.get_action(self.current_model, self.environment, states, self.epsilon, self.iteration)
+
+        return action
 
     def update_target(self):
         """
@@ -160,13 +170,13 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         """
         # FIXME - for large enough buffers should we overwrite this method with one that serializes states???
         # Note the observation we are saving is actually s_t. We keep an extra state so we can sample transitions.
-        SynchronousSequence.record_single(self.observation_buffer, observation, self.replay_buffer_size)
+        EnvironmentSequence.record_single(self.observation_buffer, observation, self.replay_buffer_size)
         # This is r_{t-1}
-        SynchronousSequence.record_single(self.reward_buffer, reward, self.replay_buffer_size)
+        EnvironmentSequence.record_single(self.reward_buffer, reward, self.replay_buffer_size)
         # This is a_{t-1}
-        SynchronousSequence.record_single(self.action_buffer, action, self.replay_buffer_size)
+        EnvironmentSequence.record_single(self.action_buffer, action, self.replay_buffer_size)
         # This denotes whether s_{t} is terminal
-        SynchronousSequence.record_single(self.done_buffer, done, self.replay_buffer_size)
+        EnvironmentSequence.record_single(self.done_buffer, done, self.replay_buffer_size)
 
     def simulate(self):
         """
@@ -213,9 +223,8 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
 
         return self.iteration
 
-    @abstractmethod
     def get_states_length(self):
-        pass
+        return min(len(self.observation_buffer), self.replay_buffer_size)
 
     def check_is_end_start_transition(self, index):
         """
@@ -232,9 +241,14 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
 
         return both_none
 
-    @abstractmethod
     def sample_indices(self):
-        pass
+
+        valid_indices = [index for index in range(1, self.get_states_length())
+                         if not self.check_is_end_start_transition(index)]
+
+        sampled_indices = np.random.choice(valid_indices, self.batch_size)
+
+        return sampled_indices
 
     def get_minibatch(self):
         """

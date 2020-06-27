@@ -59,34 +59,3 @@ although it may push our hardware to a limit. Conversely
 we think our hardware will comfortably handle asynchronous
 training, but implementing this as a generator may be
 tricky. Hopefully this all works!
-
-# Some General Learnings
-
-In doing some experiments with DQN, DQN with target, and
-double DQN we have learned some things about these algorithms.
-These observations have expanded our understanding of deep RL 
-as a whole. We write some below for our own reference:
-
-- DQN type methods significantly overestimate the value function
-  which can make training noisy.
-- Using techniques like target models and double DQN can significantly
-  slow down learning because of the computational cost of copying the
-  model and because the convergence to the actual Q function is slower.
-- Furthermore, DQN methods suffer from significant stability, partly we
-  hypothesize because continuous changes to the estimate Q function
-  lead to **discontinuous** changes to the policy. This leads to big
-  jumps in the on-policy distribution that replay memories don't fully solve.
-  
-Given these observations we can clearly see the practical appeal of
-policy gradient or actor critic based methods. These seem to:
-
-- Avoid the issue of ever inflating value functions by looking at
-  advantages instead of rewards.
-- Avoid the issue of discontinuous policy jumps by having proba-
-  bilistic policies.
-- Reduce the need for target models which can reduce some memory
-  and computational needs (at the expense of more compute in terms
-  of threads in certain approaches).
-  
-Thus the process of building these agents have made clear their 
-limitations and the appeal of more modern deep RL techniques.

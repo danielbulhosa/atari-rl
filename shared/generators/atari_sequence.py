@@ -27,12 +27,34 @@ class AtariSequence(SynchronousSequence):
         return self.n_stack + 1
 
     def observation_preprocess(self, observation):
+        """
+        Preprocess an image by extracting the Y
+        luminace channel and resizing them based
+        on the dims in the tuple `self.stack_dims`.
+        """
+
         img_yuv = cv2.cvtColor(observation, cv2.COLOR_BGR2YUV)
         y, u, v = cv2.split(img_yuv)
         preprocessed_image = cv2.resize(y, (self.stack_dims[0], self.stack_dims[1]))
         return preprocessed_image
 
     def get_feature_at_index(self, index):
+        """
+        Based on passed observation (timestep relative
+        to buffer start), compute features passed to agent.
+
+        We replicate the preprocessing (phi) described in
+        the Atari paper. Namely we:
+
+        - Take the frame indexed and the `n_stack + 1`
+          preceeding ones.
+        - We take contiguous pairwise maxes of images
+          to end with a stack of `n_stack` images with
+          flickering eliminated.
+        - We preprocess images by extracting the Y
+          luminace channel and resizing them,
+        """
+
         observation_stack = self.observation_buffer[index - self.n_stack:index + 1]
         maxed_observations = [np.maximum(observation_stack[i], observation_stack[i+1])
                               for i in range(len(observation_stack) - 1)]

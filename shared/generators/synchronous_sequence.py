@@ -109,14 +109,19 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         return self.get_minibatch()
 
     @abstractmethod
-    def get_latest_observations(self, n):
+    def get_feature_at_index(self, index):
         """
-        Gets the latest n observations and
-        rewards.
+        Gets the feature at a particular index
         """
         pass
 
-    @abstractmethod
+    def get_latest_feature(self):
+        """
+        Gets the latest feature
+        """
+        max_index = len(self.observation_buffer) - 1
+        return self.get_feature_at_index(max_index)
+
     def get_action(self):
         """
         Gets next action either from value function or
@@ -129,7 +134,17 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
 
         :return: Next action.
         """
-        pass
+        # FIXME- Note agmeth.get_action assumes `policy_source` is a Q func. This will not work with policy grads
+
+        # Do random policy until we have sufficiently filled the replay buffer
+        if self.iteration // self.grad_update_frequency < self.initial_sims:
+            action = self.environment.action_space.sample()
+
+        else:
+            states = self.get_latest_feature()
+            action = agmeth.get_action(self.current_model, self.environment, states, self.epsilon, self.iteration)
+
+        return action
 
     def update_target(self):
         """
@@ -214,8 +229,11 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         return self.iteration
 
     @abstractmethod
-    def get_states_length(self):
+    def get_states_start(self):
         pass
+
+    def get_states_length(self):
+        return min(len(self.observation_buffer), self.replay_buffer_size)
 
     def check_is_end_start_transition(self, index):
         """
@@ -232,9 +250,15 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
 
         return both_none
 
-    @abstractmethod
     def sample_indices(self):
-        pass
+
+        # check_is_end_transition is a method from the parent class
+        valid_indices = [index for index in range(self.get_states_start(), self.get_states_length())
+                         if not self.check_is_end_start_transition(index)]
+
+        sampled_indices = np.random.choice(valid_indices, self.batch_size)
+
+        return sampled_indices
 
     def get_minibatch(self):
         """
@@ -248,15 +272,14 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
 
         :return: An experience minibatch.
         """
-        # FIXME - need to replace with method that feeds features, NOT observations to model
-        # FIXME- also note we assume `policy_source` is a Q function. This will not work with policy gradients then.
+        # FIXME- Note agmeth.evaluate_state assumes `policy_source` is a Q func. This will not work with policy grads
 
         # We assume the paper does sampling with replacement. Makes the most sense if we're sampling a distribution.
         sampled_indices = self.sample_indices()
 
-        states = np.array([self.observation_buffer[index - 1] for index in sampled_indices])
+        states = np.array([self.get_feature_at_index(index - 1) for index in sampled_indices])
         actions = np.array([self.action_buffer[index] for index in sampled_indices])
-        next_states = np.array([self.observation_buffer[index] for index in sampled_indices])
+        next_states = np.array([self.get_feature_at_index(index) for index in sampled_indices])
         rewards = np.array([self.reward_buffer[index] for index in sampled_indices])
         is_next_terminals = np.array([self.done_buffer[index] for index in sampled_indices])
 

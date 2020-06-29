@@ -121,6 +121,7 @@ evaluator_params = {'environment': copy.deepcopy(environment),
                     'gamma': gamma,
                     'epsilon': eval_exploration_schedule,
                     'num_episodes': eval_episodes,
+                    'num_max_iter': eval_max_iter,
                     'num_init_samples': eval_num_samples}
 
 """

@@ -8,7 +8,7 @@ class EvaluateAgentCallback(call.Callback):
 
     def __init__(self, environment, gamma, tb_callback,
                  epsilon=(lambda iteration: 0.05), num_episodes=30,
-                 num_init_samples=1000):
+                 num_init_samples=1000, num_max_iter=np.inf):
 
         """
         Create a callback that evaluates the performance of
@@ -47,6 +47,7 @@ class EvaluateAgentCallback(call.Callback):
         self.epsilon = epsilon
         self.num_episodes = num_episodes
         self.num_init_samples = num_init_samples
+        self.num_max_iter = num_max_iter
         self.step_number = 0
 
     def simulate_episodes(self, action_getter):
@@ -60,44 +61,58 @@ class EvaluateAgentCallback(call.Callback):
         :return: Average rewards and episode lengths.
         """
 
-        total_rewards = np.empty(self.num_episodes)
-        episode_lenghts = np.empty(self.num_episodes)
+        total_rewards = []
+        episode_lenghts = []
+        episode = 0
 
-        for episode in range(self.num_episodes):
+        while episode < self.num_episodes:
             iteration = 0
             discount_factor = 1
             total_reward = 0
             observation = self.environment.reset()
             done = False
 
-            while not done:
+            while not done and iteration <= self.num_max_iter:
                 iteration += 1
                 action = action_getter(observation, iteration)
                 observation, reward, done, info = self.environment.step(action)
                 total_reward += discount_factor * reward
                 discount_factor *= self.gamma
 
-            total_rewards[episode] = total_reward
-            episode_lenghts[episode] = iteration
+            # If episode was not completed and max iterations reached then do not count the episode and break
+            if not done and iteration > self.num_max_iter:
+                break
+            # Otherwise count the episode and see if we reached the max iterations yet, loop or exit accordingly
+            else:
+                total_rewards.append(total_reward)
+                episode_lenghts.append(iteration)
 
-        average_reward = np.mean(total_rewards)
-        average_episode_length = np.mean(episode_lenghts)
+                if iteration > self.num_max_iter:
+                    break
 
-        return average_reward, average_episode_length
+            episode += 1
+
+        average_reward = np.mean(np.array(total_rewards))
+        average_episode_length = np.mean(np.array(episode_lenghts))
+        num_episodes = episode
+
+        return average_reward, average_episode_length, num_episodes
 
     def on_train_begin(self, logs=None):
-        average_reward, average_episode_length = self.simulate_episodes(self.get_action)
-        random_reward, random_episode_length = self.simulate_episodes(self.get_random_action)
+        average_reward, average_episode_length, average_num_episodes = self.simulate_episodes(self.get_action)
+        random_reward, random_episode_length, random_num_episodes = self.simulate_episodes(self.get_random_action)
 
         print("\nInitial valuation. " +
               "\nAverage reward of initial policy over {} episodes: {}".format(self.num_episodes, average_reward) +
               "\nAverage reward of random policy over {} episodes: {}".format(self.num_episodes, random_reward) +
               "\nAverage episode length of initial policy over {} episodes: {}".format(self.num_episodes, average_episode_length) +
-              "\nAverage episode length of random policy over {} episodes: {}".format(self.num_episodes, random_episode_length))
+              "\nAverage episode length of random policy over {} episodes: {}".format(self.num_episodes, random_episode_length) +
+              "\nNumber of episodes for initial policy over {} max iterations".format(average_num_episodes, self.num_max_iter) +
+              "\nNumber of episodes for random policy over {} episodes: {}".format(random_num_episodes, self.num_max_iter))
 
     def on_epoch_end(self, epoch, logs=None):
 
-        average_reward, average_episode_length = self.simulate_episodes(self.get_action)
+        average_reward, average_episode_length, num_episodes = self.simulate_episodes(self.get_action)
         init_states = []
 
         for num in range(self.num_init_samples):
@@ -111,6 +126,7 @@ class EvaluateAgentCallback(call.Callback):
         items_to_write = {
             "average_reward": average_reward,
             "average_episode_length": average_episode_length,
+            "number_of_episodes": num_episodes,
             "average_initial_state_value": average_init_value
         }
         writer = self.tb_callback.writer
@@ -126,6 +142,7 @@ class EvaluateAgentCallback(call.Callback):
         print("\nEvaluation complete. " +
               "\nAverage reward over {} episodes: {}".format(self.num_episodes, average_reward) +
               "\nAverage episode length over {} episodes: {}".format(self.num_episodes, average_episode_length) +
+              "\nNumber of episodes over {} max iterations".format(num_episodes, self.num_max_iter) +
               "\nAverage expected value across {} initial states: {}".format(self.num_init_samples, average_init_value))
 
     def get_action(self, state, iteration):

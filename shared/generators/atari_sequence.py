@@ -61,4 +61,4 @@ class AtariSequence(SynchronousSequence):
         preprocessed_images = [self.observation_preprocess(observation)
                                for observation in maxed_observations]
 
-        return preprocessed_images
+        return np.array(preprocessed_images).reshape((self.stack_dims[0], self.stack_dims[1], self.n_stack))

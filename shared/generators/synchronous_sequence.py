@@ -141,7 +141,7 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
             action = self.environment.action_space.sample()
 
         else:
-            states = self.get_latest_feature()
+            states = [self.get_latest_feature()]
             action = agmeth.get_action(self.current_model, self.environment, states, self.epsilon, self.iteration)
 
         return action

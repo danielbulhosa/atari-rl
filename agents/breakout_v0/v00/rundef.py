@@ -12,6 +12,7 @@ import shared.debugging.functions as debug
 import gym
 import copy
 import math
+import numpy as np
 # FIXME - does this fix the CUDNN_STATUS_INTERNAL_ERROR?
 import tensorflow as tf
 config = tf.ConfigProto()
@@ -82,8 +83,8 @@ epoch_length = grad_update_frequency * 50000  # Measured in weight updates
 num_epochs = int(math.ceil((50 * 10**6) / epoch_length))  # Total training is around 50M frames
 replay_buffer_size = 10**6  # Note that the paper measures this number in frames
 replay_buffer_min = 50 * 10**3  # Measured in frames
-eval_episodes = None  # FIXME - allow None as a parameter value for this parameter
-eval_max_iter = 10000  # FIXME - add this parameter to evaluation callback
+eval_episodes = np.inf  # No upper bound on the number of episodes evaluated
+eval_max_iter = 10000  # There is an upper bound on number of maximum iterations though
 eval_num_samples = 10000
 
 """

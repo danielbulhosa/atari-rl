@@ -62,3 +62,24 @@ class AtariSequence(SynchronousSequence):
                                for observation in maxed_observations]
 
         return np.array(preprocessed_images).reshape((self.stack_dims[0], self.stack_dims[1], self.n_stack))
+
+    @staticmethod
+    def reward_transform(reward):
+        """
+        In the Atari paper rewards are either 1, 0, or -1
+        based on their sign and equality to zero. This function
+        does that transform.
+
+        :param reward: The actial reward.
+        :return: The rescaled reward.
+        """
+        if reward > 0:
+            return 1
+        elif reward < 0:
+            return -1
+        else:
+            return 0
+
+    def get_reward_at_index(self, index):
+        actual_reward = self.reward_buffer[index]
+        return AtariSequence.reward_transform(actual_reward)

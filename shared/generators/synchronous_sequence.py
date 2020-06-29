@@ -115,6 +115,13 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         """
         pass
 
+    @abstractmethod
+    def get_reward_at_index(self, index):
+        """
+        Gets the reward (transformed or not) at index
+        """
+        pass
+
     def get_latest_feature(self):
         """
         Gets the latest feature
@@ -280,7 +287,7 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         states = np.array([self.get_feature_at_index(index - 1) for index in sampled_indices])
         actions = np.array([self.action_buffer[index] for index in sampled_indices])
         next_states = np.array([self.get_feature_at_index(index) for index in sampled_indices])
-        rewards = np.array([self.reward_buffer[index] for index in sampled_indices])
+        rewards = np.array([self.get_reward_at_index(index) for index in sampled_indices])
         is_next_terminals = np.array([self.done_buffer[index] for index in sampled_indices])
 
         Q_max = agmeth.evaluate_state(self.target_model, next_states, self.double_dqn_model())

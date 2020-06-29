@@ -50,6 +50,9 @@ class EvaluateAgentCallback(call.Callback):
         self.num_max_iter = num_max_iter
         self.step_number = 0
 
+        assert num_episodes is not np.inf or num_max_iter is not np.inf, \
+            "`num_episodes` and `num_max_iter` cannot both be equal to `np.inf`"
+
     def simulate_episodes(self, action_getter):
         """
         Code for simulating an episode. Used in evaluation

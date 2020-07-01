@@ -10,7 +10,8 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
                  epsilon, batch_size, grad_update_frequency,
                  target_update_frequency, action_repeat,
                  gamma, epoch_length, replay_buffer_size=None,
-                 replay_buffer_min=None, use_double_dqn=False):
+                 replay_buffer_min=None, use_double_dqn=False,
+                 skip_frames=False):
         """
         We initialize the SynchronousSequence class
         with a batch size and an environment to generate
@@ -43,6 +44,7 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         self.replay_buffer_size = replay_buffer_size if replay_buffer_size is not None else batch_size
         self.replay_buffer_min = replay_buffer_min if replay_buffer_min is not None else batch_size
         self.use_double_dqn = use_double_dqn
+        self.skip_frames = skip_frames
         self.use_target_model = self.target_update_frequency is not None
         self.initial_sims = self.replay_buffer_min // self.grad_update_frequency
         self.initial_iterations = self.initial_sims * self.grad_update_frequency
@@ -209,6 +211,7 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         # Simulate grad_update_frequency # of environment and action steps
         for iter in range(self.grad_update_frequency):
             self.iteration += 1
+            repeat_action = (self.iteration % self.action_repeat) != 0
 
             # Update target after the appropiate number of iterations
             if self.use_target_model and (self.iteration % self.target_update_frequency) == 0\
@@ -223,10 +226,14 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
             # Otherwise only get action every action_repeat iterations or on restart and use action to get next state
             else:
                 # Get a new action after repeating action_repeat # times
-                if (self.iteration % self.action_repeat) == 0 or action is None:
+                if not repeat_action or action is None:
                     action = self.get_action()
 
                 observation, reward, done, info = self.environment.step(action)
+
+            # Note that if we choose to skip frames then frames occurring during action repeat are not saved in buffer
+            if repeat_action and self.skip_frames:
+                continue
 
             # The record method takes care of recording observed states
             self.record(observation, reward, done, action)

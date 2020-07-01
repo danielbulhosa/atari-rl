@@ -13,7 +13,6 @@ import gym
 import copy
 import math
 import numpy as np
-# FIXME - does this fix the CUDNN_STATUS_INTERNAL_ERROR?
 import tensorflow as tf
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
@@ -57,7 +56,7 @@ action_out = lyr.Lambda(get_Q_a, Q_a_shape)([value_out, action_input])
 model = mod.Model(inputs=[state_input, action_input], outputs=[value_out, action_out])
 
 # These are the parameters for the optimizer specified in the paper. Apparently Adam = RMSprop + Momentum
-optimizer = opt.Adam(0.00025, beta_1=0.95, beta_2=0.95, epsilon=0.01)
+optimizer = opt.Adam(0.00025, beta_1=0.95, beta_2=0.95, epsilon=0.01, clipnorm=1)
 
 
 model.compile(optimizer=optimizer,
@@ -71,16 +70,17 @@ Epochs & Batch Sizes
 """
 # We fixed the number of iterations that constitute an epoch in the generator,
 # Note that we do not need a validation generator hence not val batch size.
-final_exploration_frame = 10**6
+action_repeat = 4  # action update measured in frames, called "step" in double DQN paper
+grad_update_frequency = 4 * action_repeat  # Update gradient after every four actions (one "step"), repeats included
+final_exploration_frame = action_repeat * 10**6  # Measured in "steps"
 train_exploration_schedule = (lambda iteration: max(0.1, 1 - 0.9 * iteration/final_exploration_frame))
 eval_exploration_schedule = (lambda iteration: 0.05)
-action_repeat = 4  # action update measured in frames
-grad_update_frequency = action_repeat * 4  # Update gradient after every four actions (= 4 x 4)
 train_batch_size = 32
-target_update_frequency = grad_update_frequency * 10**4  # target update freq measured in gradient updates, NOT frames
+target_update_frequency = action_repeat * 10**4  # target update freq measured in "steps", NOT frames
 gamma = 0.99
-epoch_length = grad_update_frequency * 50000  # Measured in weight updates
-num_epochs = int(math.ceil((50 * 10**6) / epoch_length))  # Total training is around 50M frames
+epoch_length = action_repeat * 50000  # Measured in "steps", converted to iterations
+total_grad_updates = 50 * 10**6  # Measured in "steps" as the name implies
+num_epochs = int(math.ceil(total_grad_updates * action_repeat / epoch_length))  # Total training is around 200M frames, counting skips
 replay_buffer_size = 10**6  # Note that the paper measures this number in frames
 replay_buffer_min = 50 * 10**3  # Measured in frames
 eval_episodes = np.inf  # No upper bound on the number of episodes evaluated
@@ -149,7 +149,9 @@ train_gen = AtariSequence(model,
                           gamma=gamma,
                           epoch_length=epoch_length,
                           replay_buffer_size=replay_buffer_size,
-                          replay_buffer_min=replay_buffer_min)
+                          replay_buffer_min=replay_buffer_min,
+                          use_double_dqn=True,
+                          skip_frames=True)
 
 if __name__ == '__main__':
     model.summary()

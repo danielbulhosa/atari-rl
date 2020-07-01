@@ -9,7 +9,8 @@ class AtariSequence(SynchronousSequence):
                  n_stack, stack_dims, epsilon, batch_size,
                  grad_update_frequency, target_update_frequency, action_repeat,
                  gamma, epoch_length, replay_buffer_size=None,
-                 replay_buffer_min=None, use_double_dqn=False):
+                 replay_buffer_min=None, use_double_dqn=False,
+                 skip_frames=False):
 
         # How many frames to stack to create features
         self.n_stack = n_stack
@@ -19,7 +20,7 @@ class AtariSequence(SynchronousSequence):
                          epsilon, batch_size, grad_update_frequency,
                          target_update_frequency, action_repeat,
                          gamma, epoch_length, replay_buffer_size,
-                         replay_buffer_min, use_double_dqn)
+                         replay_buffer_min, use_double_dqn, skip_frames)
 
     def get_states_start(self):
         # Plus one because for each frame we take its average
@@ -81,5 +82,6 @@ class AtariSequence(SynchronousSequence):
             return 0
 
     def get_reward_at_index(self, index):
-        actual_reward = self.reward_buffer[index]
-        return AtariSequence.reward_transform(actual_reward)
+        # We take total rewards since we're skipping frames
+        total_rewards = self.reward_buffer[index - self.action_repeat + 1:index + 1].sum()
+        return AtariSequence.reward_transform(total_rewards)

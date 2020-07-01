@@ -83,5 +83,5 @@ class AtariSequence(SynchronousSequence):
 
     def get_reward_at_index(self, index):
         # We take total rewards since we're skipping frames
-        total_rewards = self.reward_buffer[index - self.action_repeat + 1:index + 1].sum()
+        total_rewards = sum(self.reward_buffer[index - self.action_repeat + 1:index + 1])
         return AtariSequence.reward_transform(total_rewards)

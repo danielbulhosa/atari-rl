@@ -251,18 +251,26 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
 
     def check_is_end_start_transition(self, index):
         """
-        Check index does not map to an transition from
+        Check indices does not map to an transition from
         final state to initial. These are not allowed.
+
+        Note that if get_states_start returns 1 then
+        this will be a length 1 list with a single state,
+        reducing to the classical case.
         """
+        actions = self.action_buffer[index - self.get_states_start() + 1: index + 1]
+        rewards = self.action_buffer[index - self.get_states_start() + 1: index + 1]
+        check_list = []
 
-        action = self.action_buffer[index]
-        reward = self.action_buffer[index]
-        both_not_none = action is not None and reward is not None
-        both_none = action is None and reward is None
+        for action, reward in zip(actions, rewards):
 
-        assert both_none or both_not_none, "Consistency check, reward and action must both be `None` or not."
+            both_not_none = action is not None and reward is not None
+            both_none = action is None and reward is None
+            assert both_none or both_not_none, "Consistency check, reward and action must both be `None` or not."
+            check_list.append(both_none)
 
-        return both_none
+        # We check that any of the states in the range searched define an episode end
+        return any(check_list)
 
     def sample_indices(self):
 

@@ -273,10 +273,16 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         return any(check_list)
 
     def sample_indices(self):
+        # Check which buffer indices correspond to episode ends
+        invalid_indices = np.argwhere(np.array(self.done_buffer) == None).flatten()
 
-        # check_is_end_transition is a method from the parent class
-        valid_indices = [index for index in range(self.get_states_start(), self.get_states_length())
-                         if not self.check_is_end_start_transition(index)]
+        # Include base indices such that frame stack overlaps with episode end into invalid indices
+        for shift in range(1, self.get_states_start()):
+            invalid_indices = np.concatenate([invalid_indices, invalid_indices + shift])
+
+        all_indices = np.arange(self.get_states_start(), self.get_states_length())
+
+        valid_indices = np.setdiff1d(all_indices, invalid_indices)
 
         sampled_indices = np.random.choice(valid_indices, self.batch_size)
 

@@ -52,17 +52,20 @@ class AtariSequence(SynchronousSequence):
         - We take contiguous pairwise maxes of images
           to end with a stack of `n_stack` images with
           flickering eliminated.
-        - We preprocess images by extracting the Y
-          luminace channel and resizing them,
+
+        The preprocessing is done when we save features
+        to the replay memory. This turned out to be significantly
+        more compute efficient. Note that in the paper these
+        operations are done in the opposite order but since our
+        scaling operation is linear the two feature processing
+        steps commute so we were able to change their order.
         """
 
-        observation_stack = self.observation_buffer[index - self.n_stack:index + 1]
+        observation_stack = self.feature_buffer[index - self.n_stack:index + 1]
         maxed_observations = [np.maximum(observation_stack[i], observation_stack[i+1])
                               for i in range(len(observation_stack) - 1)]
-        preprocessed_images = [self.observation_preprocess(observation)
-                               for observation in maxed_observations]
 
-        return np.array(preprocessed_images).reshape((self.stack_dims[0], self.stack_dims[1], self.n_stack))
+        return np.array(maxed_observations).reshape((self.stack_dims[0], self.stack_dims[1], self.n_stack))
 
     @staticmethod
     def reward_transform(reward):

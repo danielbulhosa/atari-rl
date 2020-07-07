@@ -54,7 +54,7 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
 
         # Buffers
         self.reward_buffer = []
-        self.observation_buffer = []
+        self.feature_buffer = []
         self.action_buffer = []
         self.done_buffer = []
 
@@ -64,7 +64,7 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
 
         # Keep track of state before getting minibatch, Initialize state buffers.
         self.prev_observation, self.prev_action, self.prev_reward, self.prev_done = self.environment.reset(), None, None, None
-        SynchronousSequence.record_single(self.observation_buffer, self.prev_observation, self.replay_buffer_size)
+        SynchronousSequence.record_single(self.feature_buffer, self.prev_observation, self.replay_buffer_size)
         SynchronousSequence.record_single(self.action_buffer, self.prev_action, self.replay_buffer_size)
         SynchronousSequence.record_single(self.reward_buffer, self.prev_reward, self.replay_buffer_size)
         SynchronousSequence.record_single(self.done_buffer, self.prev_done, self.replay_buffer_size)
@@ -111,9 +111,27 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         return self.get_minibatch()
 
     @abstractmethod
+    def observation_preprocess(self, observation):
+        """
+        Preprocesses observation into feature before it gets
+        recorded in the replay memory. The feature output by
+        this method is what gets saved to the replay memory.
+
+        We found that doing part of the feature processing
+        before saving features to the replay buffer was
+        significantly more memory and compute efficient.
+        Hence why we do some of the feature generation here
+        and some in the get_feature_by_index method.
+        """
+        pass
+
+    @abstractmethod
     def get_feature_at_index(self, index):
         """
-        Gets the feature at a particular index
+        Gets the feature at a particular index. Post-processing
+        of features is handled by this method. Note some feature
+        processing is done by the obseravtion_preprocess method.
+        See the documentation for that method for more information.
         """
         pass
 
@@ -128,7 +146,7 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         """
         Gets the latest feature
         """
-        max_index = len(self.observation_buffer) - 1
+        max_index = len(self.feature_buffer) - 1
         return self.get_feature_at_index(max_index)
 
     def get_action(self):
@@ -184,7 +202,8 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         """
         # FIXME - for large enough buffers should we overwrite this method with one that serializes states???
         # Note the observation we are saving is actually s_t. We keep an extra state so we can sample transitions.
-        SynchronousSequence.record_single(self.observation_buffer, observation, self.replay_buffer_size)
+        feature = self.observation_preprocess(observation)
+        SynchronousSequence.record_single(self.feature_buffer, feature, self.replay_buffer_size)
         # This is r_{t-1}
         SynchronousSequence.record_single(self.reward_buffer, reward, self.replay_buffer_size)
         # This is a_{t-1}
@@ -247,7 +266,7 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         pass
 
     def get_states_length(self):
-        return min(len(self.observation_buffer), self.replay_buffer_size)
+        return min(len(self.feature_buffer), self.replay_buffer_size)
 
     def check_is_end_start_transition(self, index):
         """

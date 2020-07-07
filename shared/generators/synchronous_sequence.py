@@ -64,7 +64,8 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
 
         # Keep track of state before getting minibatch, Initialize state buffers.
         self.prev_observation, self.prev_action, self.prev_reward, self.prev_done = self.environment.reset(), None, None, None
-        SynchronousSequence.record_single(self.feature_buffer, self.prev_observation, self.replay_buffer_size)
+        prev_feature = self.observation_preprocess(self.prev_observation)
+        SynchronousSequence.record_single(self.feature_buffer, prev_feature, self.replay_buffer_size)
         SynchronousSequence.record_single(self.action_buffer, self.prev_action, self.replay_buffer_size)
         SynchronousSequence.record_single(self.reward_buffer, self.prev_reward, self.replay_buffer_size)
         SynchronousSequence.record_single(self.done_buffer, self.prev_done, self.replay_buffer_size)

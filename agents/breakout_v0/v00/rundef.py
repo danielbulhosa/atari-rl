@@ -38,7 +38,12 @@ def Q_a_shape(input_shape):
 # As far as we can find there is no weight decay specified on the paper. We use a reasonable initialization then.
 init_params = {'kernel_initializer': init.glorot_uniform()}
 
-environment = gym.make("Breakout-v0")
+# Note we don't need to set repeat_action_probability (ALE level) because repeat now handled at Gym package level
+# using `frameskip` parameter. See https://github.com/openai/gym/blob/master/gym/envs/atari/atari_env.py
+builtin_action_repeat = (3, 5)
+builtin_action_repeat_avg = builtin_action_repeat if isinstance(builtin_action_repeat, int) \
+                            else (builtin_action_repeat[1] - builtin_action_repeat[0])/2 + builtin_action_repeat[0]
+environment = gym.make("Breakout-v0", frameskip=builtin_action_repeat)
 input_image_dims = (84, 84)
 num_stack = 4
 output_size = environment.action_space.n  # Same as number of actions
@@ -67,24 +72,30 @@ model.compile(optimizer=optimizer,
 
 """
 Epochs & Batch Sizes
+
+IMPORTANT: Each iteration corresponds to # `builtin_action_repeat_avg` frames on average (4 in our case)
+Each weight update in turn corresponds to `grad_update_frequency` iterations.
+
+We need these different measures because minibatch updates are counted in weight updates,
+simulation calls are counted in iterations, but the natural scale of the problem itself 
+is frames.
 """
-# We fixed the number of iterations that constitute an epoch in the generator,
-# Note that we do not need a validation generator hence not val batch size.
-action_repeat = 4  # action update measured in frames, called "step" in double DQN paper
-grad_update_frequency = 4 * action_repeat  # Update gradient after every four actions (one "step"), repeats included
-final_exploration_frame = action_repeat * 10**6  # Measured in "steps"
-train_exploration_schedule = (lambda iteration: max(0.1, 1 - 0.9 * iteration/final_exploration_frame))
+
+grad_update_frequency = 4  # Measured in iterations. From paper, 1 grad update = 4 actions = 16 frames
+final_exploration_iteration = int(10**6 / builtin_action_repeat_avg)  # Measured in frames, converted to iterations
+train_exploration_schedule = (lambda iteration: max(0.1, 1 - 0.9 * iteration/final_exploration_iteration))
 eval_exploration_schedule = (lambda iteration: 0.05)
 train_batch_size = 32
-target_update_frequency = action_repeat * 10**4  # target update freq measured in "steps", NOT frames
+target_update_frequency = int(10**4 * grad_update_frequency)  # Measured in weight updates, converted to iterations
 gamma = 0.99
-epoch_length = action_repeat * 50000  # Measured in "steps", converted to iterations
-total_grad_updates = 50 * 10**6  # Measured in "steps" as the name implies
-num_epochs = int(math.ceil(total_grad_updates * action_repeat / epoch_length))  # Total training is around 200M frames, counting skips
+epoch_length = 50000  # Measured in weight updates, used by generator getter
+epoch_iterations = epoch_length * grad_update_frequency  # Convert epoch length from weight updates to iterations
+total_training_iterations = 200 * 10**6 // builtin_action_repeat_avg  # Measured in frames, converted to iterations
+num_epochs = int(math.ceil(total_training_iterations / epoch_iterations))
 replay_buffer_size = 10**6  # Note that the paper measures this number in frames
-replay_buffer_min = 50 * 10**3  # Measured in frames
+replay_buffer_min = 50 * 10**3  # Measured in frames STORED IN BUFFER, technically more frames are played due to repeats
 eval_episodes = np.inf  # No upper bound on the number of episodes evaluated
-eval_max_iter = 10000  # There is an upper bound on number of maximum iterations though
+eval_max_iter = 10000 // builtin_action_repeat_avg  # Upper bound of evaluation measured in frames, converted to iters
 eval_num_samples = 10000
 
 """
@@ -141,17 +152,19 @@ train_gen = AtariSequence(model,
                           environment=copy.deepcopy(environment),
                           n_stack=num_stack,
                           stack_dims=input_image_dims,
+                          pair_max=True,  # We checked and the underlying simulator does NOT take pairwise max
                           epsilon=train_exploration_schedule,
                           batch_size=train_batch_size,
                           grad_update_frequency=grad_update_frequency,
                           target_update_frequency=target_update_frequency,
-                          action_repeat=action_repeat,
+                          action_repeat=1,  # No need for manual action repeat, Gym environment handles repeats
                           gamma=gamma,
                           epoch_length=epoch_length,
                           replay_buffer_size=replay_buffer_size,
                           replay_buffer_min=replay_buffer_min,
                           use_double_dqn=True,
-                          skip_frames=True)
+                          skip_frames=False  # No manual frame skipping needed since it's built into Gym environment
+                          )
 
 if __name__ == '__main__':
     model.summary()

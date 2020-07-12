@@ -3,6 +3,7 @@ import numpy as np
 import copy
 import shared.agent_methods.methods as agmeth
 from abc import ABCMeta, abstractmethod
+from collections import deque
 
 
 class SynchronousSequence(Sequence, metaclass=ABCMeta):
@@ -53,10 +54,10 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
             assert self.use_target_model, "`use_double_dqn` cannot be set to `True` if no target model used"
 
         # Buffers
-        self.reward_buffer = []
-        self.feature_buffer = []
-        self.action_buffer = []
-        self.done_buffer = []
+        self.reward_buffer = deque(maxlen=self.replay_buffer_size)
+        self.feature_buffer = deque(maxlen=self.replay_buffer_size)
+        self.action_buffer = deque(maxlen=self.replay_buffer_size)
+        self.done_buffer = deque(maxlen=self.replay_buffer_size)
 
         # Iteration state variables
         self.episode = 1
@@ -64,11 +65,7 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
 
         # Keep track of state before getting minibatch, Initialize state buffers.
         self.prev_observation, self.prev_action, self.prev_reward, self.prev_done = self.environment.reset(), None, None, None
-        prev_feature = self.observation_preprocess(self.prev_observation)
-        SynchronousSequence.record_single(self.feature_buffer, prev_feature, self.replay_buffer_size)
-        SynchronousSequence.record_single(self.action_buffer, self.prev_action, self.replay_buffer_size)
-        SynchronousSequence.record_single(self.reward_buffer, self.prev_reward, self.replay_buffer_size)
-        SynchronousSequence.record_single(self.done_buffer, self.prev_done, self.replay_buffer_size)
+        SynchronousSequence.record(self.prev_observation, self.prev_reward, self.prev_done, self.prev_action)
 
         # Model copies
         self.current_model = policy_source
@@ -186,13 +183,6 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         else:
             return None
 
-    @staticmethod
-    def record_single(buffer, new_value, length_limit):
-        if len(buffer) == length_limit:
-            buffer.pop(0)
-
-        buffer.append(new_value)
-
     def record(self, observation, reward, done, action):
         """
         Takes in observed states and rewards and handles
@@ -202,15 +192,11 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         :return:
         """
         # FIXME - for large enough buffers should we overwrite this method with one that serializes states???
-        # Note the observation we are saving is actually s_t. We keep an extra state so we can sample transitions.
         feature = self.observation_preprocess(observation)
-        SynchronousSequence.record_single(self.feature_buffer, feature, self.replay_buffer_size)
-        # This is r_{t-1}
-        SynchronousSequence.record_single(self.reward_buffer, reward, self.replay_buffer_size)
-        # This is a_{t-1}
-        SynchronousSequence.record_single(self.action_buffer, action, self.replay_buffer_size)
-        # This denotes whether s_{t} is terminal
-        SynchronousSequence.record_single(self.done_buffer, done, self.replay_buffer_size)
+        self.feature_buffer.append(feature)  # This is s_{t}
+        self.reward_buffer.append(reward)  # This is r_{t-1}
+        self.action_buffer.append(action)  # This is a_{t-1}
+        self.done_buffer.append(done)  # This denotes whether s_{t} is terminal
 
     def simulate(self):
         """

@@ -6,13 +6,14 @@ import cv2
 class AtariSequence(SynchronousSequence):
 
     def __init__(self, policy_source, source_type, environment,
-                 n_stack, stack_dims, epsilon, batch_size,
+                 n_stack, stack_dims, pair_max, epsilon, batch_size,
                  grad_update_frequency, target_update_frequency, action_repeat,
                  gamma, epoch_length, replay_buffer_size=None,
                  replay_buffer_min=None, use_double_dqn=False,
                  skip_frames=False):
 
         # How many frames to stack to create features
+        self.pair_max = pair_max
         self.n_stack = n_stack
         self.stack_dims = stack_dims
 
@@ -61,11 +62,14 @@ class AtariSequence(SynchronousSequence):
         steps commute so we were able to change their order.
         """
 
-        observation_stack = self.feature_buffer[index - self.n_stack:index + 1]
-        maxed_observations = [np.maximum(observation_stack[i], observation_stack[i+1])
-                              for i in range(len(observation_stack) - 1)]
+        if self.pair_max:
+            observation_stack = self.feature_buffer[index - self.n_stack:index + 1]
+            final_observations = [np.maximum(observation_stack[i], observation_stack[i+1])
+                                  for i in range(len(observation_stack) - 1)]
+        else:
+            final_observations = self.feature_buffer[index - self.n_stack + 1:index + 1]
 
-        return np.array(maxed_observations).reshape((self.stack_dims[0], self.stack_dims[1], self.n_stack))
+        return np.array(final_observations).reshape((self.stack_dims[0], self.stack_dims[1], self.n_stack))
 
     @staticmethod
     def reward_transform(reward):

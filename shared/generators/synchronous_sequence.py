@@ -65,7 +65,7 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
 
         # Keep track of state before getting minibatch, Initialize state buffers.
         self.prev_observation, self.prev_action, self.prev_reward, self.prev_done = self.environment.reset(), None, None, None
-        SynchronousSequence.record(self.prev_observation, self.prev_reward, self.prev_done, self.prev_action)
+        self.record(self.prev_observation, self.prev_reward, self.prev_done, self.prev_action)
 
         # Model copies
         self.current_model = policy_source

@@ -63,11 +63,11 @@ class AtariSequence(SynchronousSequence):
         """
 
         if self.pair_max:
-            observation_stack = [self.feature_buffer[i] for i in range(index - self.n_stack, index + 1)]
+            observation_stack = self.feature_buffer[index - self.n_stack:index + 1]
             final_observations = [np.maximum(observation_stack[i], observation_stack[i+1])
                                   for i in range(len(observation_stack) - 1)]
         else:
-            final_observations = [self.feature_buffer[i] for i in range(index - self.n_stack + 1, index + 1)]
+            final_observations = self.feature_buffer[index - self.n_stack + 1:index + 1]
 
         return np.array(final_observations).reshape((self.stack_dims[0], self.stack_dims[1], self.n_stack))
 
@@ -90,6 +90,5 @@ class AtariSequence(SynchronousSequence):
 
     def get_reward_at_index(self, index):
         # We take total rewards since we're skipping frames
-        reward_list = [self.reward_buffer[i] for i in range(index - self.action_repeat + 1, index + 1)]
-        total_rewards = sum(reward_list)
+        total_rewards = sum(self.reward_buffer[index - self.action_repeat + 1:index + 1])
         return AtariSequence.reward_transform(total_rewards)

@@ -3,7 +3,6 @@ import numpy as np
 import copy
 import shared.agent_methods.methods as agmeth
 from abc import ABCMeta, abstractmethod
-from collections import deque
 
 
 class SynchronousSequence(Sequence, metaclass=ABCMeta):
@@ -54,14 +53,16 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
             assert self.use_target_model, "`use_double_dqn` cannot be set to `True` if no target model used"
 
         # Buffers
-        self.reward_buffer = deque(maxlen=self.replay_buffer_size)
-        self.feature_buffer = deque(maxlen=self.replay_buffer_size)
-        self.action_buffer = deque(maxlen=self.replay_buffer_size)
-        self.done_buffer = deque(maxlen=self.replay_buffer_size)
+        self.reward_buffer = []
+        self.feature_buffer = []
+        self.action_buffer = []
+        self.done_buffer = []
+        self.valid_buffer = []
 
         # Iteration state variables
         self.episode = 1
         self.iteration = 0
+        self.mem_frame_counter = 0  # We use a separate counter to count the number of frames added to replay memory
 
         # Keep track of state before getting minibatch, Initialize state buffers.
         self.prev_observation, self.prev_action, self.prev_reward, self.prev_done = self.environment.reset(), None, None, None
@@ -74,7 +75,6 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         assert source_type in ['value', 'policy'], "Allowed policy source types are `value` and `policy`"
 
         # Initial simulations
-
         for sim in range(self.initial_sims):
             self.simulate()
 
@@ -183,6 +183,26 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         else:
             return None
 
+    @staticmethod
+    def record_single(buffer, new_value, length_limit):
+        if len(buffer) == length_limit:
+            buffer.pop(0)
+
+        buffer.append(new_value)
+
+    def record_valid(self):
+        # Check validity by looking at current state plus previous self.get_state_start - 1 states
+        min_index = max(-len(self.done_buffer), -self.get_states_start())  # At beginning buffer is shorter
+        is_invalid = any([self.done_buffer[index] is None for index in range(min_index, 0)])
+
+        if not is_invalid:
+            # If the index is valid add it to the valid index queue
+            self.valid_buffer.append(self.mem_frame_counter)
+        if len(self.valid_buffer) > 0 and self.mem_frame_counter - self.valid_buffer[0] >= self.replay_buffer_size:
+            # If the index in the far left of the queue is too old, pop it. Note this only
+            # works because this if check corresponds to a single increment of mem_frame_counter
+            self.valid_buffer.pop(0)
+
     def record(self, observation, reward, done, action):
         """
         Takes in observed states and rewards and handles
@@ -193,10 +213,14 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         """
         # FIXME - for large enough buffers should we overwrite this method with one that serializes states???
         feature = self.observation_preprocess(observation)
-        self.feature_buffer.append(feature)  # This is s_{t}
-        self.reward_buffer.append(reward)  # This is r_{t-1}
-        self.action_buffer.append(action)  # This is a_{t-1}
-        self.done_buffer.append(done)  # This denotes whether s_{t} is terminal
+        SynchronousSequence.record_single(self.feature_buffer, feature, self.replay_buffer_size)   # This is s_{t}
+        SynchronousSequence.record_single(self.reward_buffer, reward, self.replay_buffer_size)  # This is r_{t-1}
+        SynchronousSequence.record_single(self.action_buffer, action, self.replay_buffer_size)  # This is a_{t-1}
+        SynchronousSequence.record_single(self.done_buffer, done, self.replay_buffer_size)  # whether s_{t} is terminal
+
+        # Update buffer of valid memory indices (measured in frame counts stored in memory)
+        self.record_valid()
+        self.mem_frame_counter += 1
 
     def simulate(self):
         """
@@ -279,20 +303,17 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         return any(check_list)
 
     def sample_indices(self):
-        # Check which buffer indices correspond to episode ends
-        invalid_indices = np.argwhere(np.array(self.done_buffer) == None).flatten()
+        # Sample indices of the valid_buffer list itself
+        valid_buffer_length = len(self.valid_buffer)
+        sampled_buffer_indices = np.random.randint(valid_buffer_length, size=self.batch_size)
 
-        # Include base indices such that frame stack overlaps with episode end into invalid indices
-        for shift in range(1, self.get_states_start()):
-            invalid_indices = np.concatenate([invalid_indices, invalid_indices + shift])
+        # Use valid_buffer indices to sample actual valid index values.
+        # Since lists have O(1) indexing  this approach is efficient.
+        buffer_length = self.get_states_length()
+        sampled_memory_indices = [buffer_length + (self.valid_buffer[index] - self.mem_frame_counter)
+                                  for index in sampled_buffer_indices]
 
-        all_indices = np.arange(self.get_states_start(), self.get_states_length())
-
-        valid_indices = np.setdiff1d(all_indices, invalid_indices)
-
-        sampled_indices = np.random.choice(valid_indices, self.batch_size)
-
-        return sampled_indices
+        return sampled_memory_indices
 
     def get_minibatch(self):
         """

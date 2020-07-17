@@ -63,7 +63,8 @@ model = mod.Model(inputs=[state_input, action_input], outputs=[value_out, action
 # These are the parameters for the optimizer specified in the paper. Apparently Adam = RMSprop + Momentum
 optimizer = opt.Adam(0.00025, beta_1=0.95, beta_2=0.95, epsilon=0.01, clipnorm=1)
 
-
+model._make_predict_function()
+graph = tf.get_default_graph()
 model.compile(optimizer=optimizer,
               loss=[None, losses.mean_squared_error],
               metrics=[met.mean_squared_error],
@@ -150,6 +151,7 @@ loading_params = {'checkpoint_dir': None,
 train_gen = AtariSequence(model,
                           source_type='value',
                           environment=copy.deepcopy(environment),
+                          graph=graph,
                           n_stack=num_stack,
                           stack_dims=input_image_dims,
                           pair_max=True,  # We checked and the underlying simulator does NOT take pairwise max

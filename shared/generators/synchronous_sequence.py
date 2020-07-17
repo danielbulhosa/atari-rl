@@ -6,7 +6,7 @@ from abc import ABCMeta, abstractmethod
 
 
 class SynchronousSequence(Sequence, metaclass=ABCMeta):
-    def __init__(self, policy_source, source_type, environment,
+    def __init__(self, policy_source, source_type, environment, graph,
                  epsilon, batch_size, grad_update_frequency,
                  target_update_frequency, action_repeat,
                  gamma, epoch_length, replay_buffer_size=None,
@@ -34,6 +34,7 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         self.policy_source = policy_source
         self.source_type = source_type
         self.environment = environment
+        self.graph = graph
         self.epsilon = epsilon  # This should be a function taking in the iteration number
         self.batch_size = batch_size
         self.grad_update_frequency = grad_update_frequency
@@ -104,8 +105,9 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
 
         # FIXME - what happens if we have more than one worker loading minibatches? Do we have asynchrony issues?
         iter = self.simulate()
-        assert ((iter - self.initial_iterations) / self.grad_update_frequency - 1) % self.epoch_length == idx, \
-            "Consistency check, iterations and minibatch index don't match"
+        intra_epoch_iterations = ((iter - self.initial_iterations) / self.grad_update_frequency - 1) % self.epoch_length
+        assert intra_epoch_iterations == idx, \
+            "Consistency check, iterations ({}) and minibatch index ({}) don't match".format(intra_epoch_iterations, idx)
         return self.get_minibatch()
 
     @abstractmethod
@@ -167,7 +169,8 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
 
         else:
             states = [self.get_latest_feature()]
-            action = agmeth.get_action(self.current_model, self.environment, states, self.epsilon, self.iteration)
+            action = agmeth.get_action(self.current_model, self.environment, states,
+                                       self.epsilon, self.iteration, self.graph)
 
         return action
 
@@ -175,7 +178,8 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         """
         Update target model.
         """
-        self.target_model = copy.deepcopy(self.current_model) if self.use_target_model else self.current_model
+        with self.graph.as_default():
+            self.target_model = copy.deepcopy(self.current_model) if self.use_target_model else self.current_model
 
     def double_dqn_model(self):
         if self.use_double_dqn:
@@ -338,7 +342,7 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         rewards = np.array([self.get_reward_at_index(index) for index in sampled_indices])
         is_next_terminals = np.array([self.done_buffer[index] for index in sampled_indices])
 
-        Q_max = agmeth.evaluate_state(self.target_model, next_states, self.double_dqn_model())
+        Q_max = agmeth.evaluate_state(self.target_model, next_states, self.graph, self.double_dqn_model())
 
         # We reshape the arrays so that it is clear to Tensorflow that each row is a datapoint
         x = [states, actions.reshape(-1, 1)]

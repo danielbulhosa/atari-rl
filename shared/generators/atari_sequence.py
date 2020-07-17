@@ -5,7 +5,7 @@ import cv2
 
 class AtariSequence(SynchronousSequence):
 
-    def __init__(self, policy_source, source_type, environment,
+    def __init__(self, policy_source, source_type, environment, graph,
                  n_stack, stack_dims, pair_max, epsilon, batch_size,
                  grad_update_frequency, target_update_frequency, action_repeat,
                  gamma, epoch_length, replay_buffer_size=None,
@@ -17,7 +17,7 @@ class AtariSequence(SynchronousSequence):
         self.n_stack = n_stack
         self.stack_dims = stack_dims
 
-        super().__init__(policy_source, source_type, environment,
+        super().__init__(policy_source, source_type, environment, graph,
                          epsilon, batch_size, grad_update_frequency,
                          target_update_frequency, action_repeat,
                          gamma, epoch_length, replay_buffer_size,

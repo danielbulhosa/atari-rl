@@ -176,7 +176,9 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
 
     def update_target(self):
         """
-        Update target model.
+        Update target model. Note we make sure
+        this new model is created and ran on the
+        same graph as the model we copy it from.
         """
         with self.graph.as_default():
             self.target_model = copy.deepcopy(self.current_model) if self.use_target_model else self.current_model

@@ -64,13 +64,14 @@ class AtariSequence(SynchronousSequence):
         scaling operation is linear the two feature processing
         steps commute so we were able to change their order.
         """
+        observation_stack = self.feature_buffer[index - (self.get_states_start() - 1):index + 1]
 
+        # If no pair max is taken the operation is just the identity
         if self.pair_max:
-            observation_stack = self.feature_buffer[index - self.n_stack:index + 1]
             final_observations = [np.maximum(observation_stack[i], observation_stack[i+1])
                                   for i in range(len(observation_stack) - 1)]
         else:
-            final_observations = self.feature_buffer[index - self.n_stack + 1:index + 1]
+            final_observations = observation_stack
 
         return np.array(final_observations).reshape((self.stack_dims[0], self.stack_dims[1], self.n_stack))
 

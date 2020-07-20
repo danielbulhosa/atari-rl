@@ -164,9 +164,13 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         # FIXME- Note agmeth.get_action assumes `policy_source` is a Q func. This will not work with policy grads
 
         # Do random policy until we have sufficiently filled the replay buffer
-        if self.iteration // self.grad_update_frequency < self.initial_sims:
-            action = self.environment.action_space.sample()
+        is_initial_buffer_fill_done = self.iteration // self.grad_update_frequency >= self.initial_sims
+        is_stack_crossing_episodes = any([done is None for done in self.done_buffer[-self.get_states_start():]])
 
+        # Do random policy until we have sufficiently filled the replay buffer
+        # or when the latest frame stack is crossing between episodes
+        if not is_initial_buffer_fill_done or is_stack_crossing_episodes:
+            action = self.environment.action_space.sample()
         else:
             states = [self.get_latest_feature()]
             action = agmeth.get_action(self.current_model, self.environment, states,

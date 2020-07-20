@@ -24,9 +24,12 @@ class AtariSequence(SynchronousSequence):
                          replay_buffer_min, use_double_dqn, skip_frames)
 
     def get_states_start(self):
-        # Plus one because for each frame we take its average
-        # with the previous one to eliminate flickering artifacts
-        return self.n_stack + 1
+        # Plus one when pair_max is true because for each frame we take
+        # its average with the previous one to eliminate flickering artifacts
+        if self.pair_max:
+            return self.n_stack + 1
+        else:
+            return self.n_stack
 
     def observation_preprocess(self, observation):
         """

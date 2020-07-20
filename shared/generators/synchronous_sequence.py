@@ -204,9 +204,11 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         if not is_invalid:
             # If the index is valid add it to the valid index queue
             self.valid_buffer.append(self.mem_frame_counter)
-        if len(self.valid_buffer) > 0 and self.mem_frame_counter - self.valid_buffer[0] >= self.replay_buffer_size:
+        if len(self.valid_buffer) > 0 \
+                and self.mem_frame_counter - self.valid_buffer[0] >= self.replay_buffer_size - self.get_states_start():
             # If the index in the far left of the queue is too old, pop it. Note this only
-            # works because this if check corresponds to a single increment of mem_frame_counter
+            # works because this if check corresponds to a single increment of mem_frame_counter.
+            # We subtract self.get_states_start() to account for the frame stack length.
             self.valid_buffer.pop(0)
 
     def record(self, observation, reward, done, action):

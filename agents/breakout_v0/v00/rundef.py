@@ -100,53 +100,8 @@ eval_max_iter = 10000 // builtin_action_repeat_avg  # Upper bound of evaluation 
 eval_num_samples = 10000
 
 """
-Callback Params
+Training & Validation Generators
 """
-
-# There is no learning rate schedule in the papers, it's constant
-scheduler = None
-
-log_dir = paths.agents + 'breakout_v0/v{:02d}/logs'.format(version)
-checkpoint_dir = paths.agents + 'breakout_v0/v{:02d}/checkpoints'.format(version)
-
-if not path.isdir(checkpoint_dir):
-    os.mkdir(checkpoint_dir)
-
-if not path.isdir(log_dir):
-    os.mkdir(log_dir)
-
-"""
-Callback and Generator Shared Parameters
-"""
-
-
-# Experiment directory format is {model}/{version}/{filetype}
-tensorboard_params = {'log_dir': log_dir,
-                      'batch_size': train_batch_size,
-                      'write_grads': True,
-                      'write_images': True}
-
-checkpointer_params = {'filepath': checkpoint_dir + '/weights.{epoch:02d}.hdf5',
-                       'verbose': 1}
-
-evaluator_params = {'environment': copy.deepcopy(environment),
-                    'gamma': gamma,
-                    'epsilon': eval_exploration_schedule,
-                    'num_episodes': eval_episodes,
-                    'num_max_iter': eval_max_iter,
-                    'num_init_samples': eval_num_samples}
-
-"""
-Loading Params
-"""
-
-# If model_file is not None and checkpoint_dir is not None then loading happens, else not
-loading_params = {'checkpoint_dir': None,
-                  'model_file': None,
-                  'test_checkpoint_dir': checkpoint_dir,
-                  'test_model_file': '/weights.{epoch:02d}.hdf5',  # Weight file used for testing performance
-                  'test_model_dir': os.path.dirname(os.path.realpath(__file__)),
-                  'epoch_start': None}
 
 train_gen = AtariSequence(model,
                           source_type='value',
@@ -165,8 +120,79 @@ train_gen = AtariSequence(model,
                           replay_buffer_size=replay_buffer_size,
                           replay_buffer_min=replay_buffer_min,
                           use_double_dqn=True,
-                          skip_frames=False  # No manual frame skipping needed since it's built into Gym environment
                           )
+
+
+def evaluation_sequence_constructor():
+    """
+    Constructs a new sequence class for simulations
+    done for evaluation. We pass a constructor to
+    the evaluation callback because it allows us to
+    reset the sequence (by creating a new one) when
+    doing a new evaluation.
+    """
+    return AtariSequence(model,
+                         source_type='value',
+                         environment=copy.deepcopy(environment),
+                         graph=graph,
+                         n_stack=num_stack,
+                         stack_dims=input_image_dims,
+                         pair_max=True,  # We checked and the underlying simulator does NOT take pairwise max
+                         epsilon=eval_exploration_schedule,
+                         batch_size=0,  # For validation we do not create batches, hence we do not use this parameter
+                         grad_update_frequency=0,
+                         target_update_frequency=None,
+                         action_repeat=1,  # No need for manual action repeat, Gym environment handles repeats
+                         gamma=gamma,
+                         epoch_length=0,
+                         replay_buffer_size=num_stack,
+                         replay_buffer_min=0,
+    )
+
+"""
+Callback Params
+"""
+
+# Note: There is no learning rate schedule in the papers, it's constant
+
+log_dir = paths.agents + 'breakout_v0/v{:02d}/logs'.format(version)
+checkpoint_dir = paths.agents + 'breakout_v0/v{:02d}/checkpoints'.format(version)
+
+if not path.isdir(checkpoint_dir):
+    os.mkdir(checkpoint_dir)
+
+if not path.isdir(log_dir):
+    os.mkdir(log_dir)
+
+"""
+Callback and Generator Shared Parameters
+"""
+
+# Experiment directory format is {model}/{version}/{filetype}
+tensorboard_params = {'log_dir': log_dir,
+                      'batch_size': train_batch_size,
+                      'write_grads': True,
+                      'write_images': True}
+
+checkpointer_params = {'filepath': checkpoint_dir + '/weights.{epoch:02d}.hdf5',
+                       'verbose': 1}
+
+evaluator_params = {'num_episodes': eval_episodes,
+                    'num_max_iter': eval_max_iter,
+                    'num_init_samples': eval_num_samples,
+                    'sequence_constructor': evaluation_sequence_constructor}
+
+"""
+Loading Params
+"""
+
+# If model_file is not None and checkpoint_dir is not None then loading happens, else not
+loading_params = {'checkpoint_dir': None,
+                  'model_file': None,
+                  'test_checkpoint_dir': checkpoint_dir,
+                  'test_model_file': '/weights.{epoch:02d}.hdf5',  # Weight file used for testing performance
+                  'test_model_dir': os.path.dirname(os.path.realpath(__file__)),
+                  'epoch_start': None}
 
 if __name__ == '__main__':
     model.summary()

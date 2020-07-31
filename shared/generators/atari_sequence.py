@@ -9,8 +9,7 @@ class AtariSequence(SynchronousSequence):
                  n_stack, stack_dims, pair_max, epsilon, batch_size,
                  grad_update_frequency, target_update_frequency, action_repeat,
                  gamma, epoch_length, replay_buffer_size=None,
-                 replay_buffer_min=None, use_double_dqn=False,
-                 skip_frames=False):
+                 replay_buffer_min=None, use_double_dqn=False):
 
         # How many frames to stack to create features
         self.pair_max = pair_max
@@ -21,7 +20,7 @@ class AtariSequence(SynchronousSequence):
                          epsilon, batch_size, grad_update_frequency,
                          target_update_frequency, action_repeat,
                          gamma, epoch_length, replay_buffer_size,
-                         replay_buffer_min, use_double_dqn, skip_frames)
+                         replay_buffer_min, use_double_dqn)
 
     def get_states_start(self):
         # Plus one when pair_max is true because for each frame we take

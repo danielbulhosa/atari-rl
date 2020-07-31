@@ -10,8 +10,7 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
                  epsilon, batch_size, grad_update_frequency,
                  target_update_frequency, action_repeat,
                  gamma, epoch_length, replay_buffer_size=None,
-                 replay_buffer_min=None, use_double_dqn=False,
-                 skip_frames=False):
+                 replay_buffer_min=None, use_double_dqn=False):
         """
         We initialize the SynchronousSequence class
         with a batch size and an environment to generate
@@ -45,10 +44,7 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         self.replay_buffer_size = replay_buffer_size if replay_buffer_size is not None else batch_size
         self.replay_buffer_min = replay_buffer_min if replay_buffer_min is not None else batch_size
         self.use_double_dqn = use_double_dqn
-        self.skip_frames = skip_frames
         self.use_target_model = self.target_update_frequency is not None
-        self.initial_sims = self.replay_buffer_min // self.grad_update_frequency
-        self.initial_iterations = self.initial_sims * self.grad_update_frequency
 
         if self.use_double_dqn:
             assert self.use_target_model, "`use_double_dqn` cannot be set to `True` if no target model used"
@@ -66,8 +62,8 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         self.mem_frame_counter = 0  # We use a separate counter to count the number of frames added to replay memory
 
         # Keep track of state before getting minibatch, Initialize state buffers.
-        self.prev_observation, self.prev_action, self.prev_reward, self.prev_done = self.environment.reset(), None, None, None
-        self.record(self.prev_observation, self.prev_reward, self.prev_done, self.prev_action)
+        prev_observation, prev_action, prev_reward, prev_done = self.environment.reset(), None, None, None
+        self.record(prev_observation, prev_reward, prev_done, prev_action)
 
         # Model copies
         self.current_model = policy_source
@@ -76,8 +72,8 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         assert source_type in ['value', 'policy'], "Allowed policy source types are `value` and `policy`"
 
         # Initial simulations
-        for sim in range(self.initial_sims):
-            self.simulate()
+        for sim in range(self.replay_buffer_min):
+            self.simulate_single()
 
     def __len__(self):
         """
@@ -105,7 +101,7 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
 
         # FIXME - what happens if we have more than one worker loading minibatches? Do we have asynchrony issues?
         iter = self.simulate()
-        intra_epoch_iterations = ((iter - self.initial_iterations) / self.grad_update_frequency - 1) % self.epoch_length
+        intra_epoch_iterations = ((iter - self.replay_buffer_min) / self.grad_update_frequency - 1) % self.epoch_length
         assert intra_epoch_iterations == idx, \
             "Consistency check, iterations ({}) and minibatch index ({}) don't match".format(intra_epoch_iterations, idx)
         return self.get_minibatch()
@@ -142,12 +138,40 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         """
         pass
 
+    def get_done_at_index(self, index):
+        return self.done_buffer[index]
+
+    def get_action_at_index(self, index):
+        return self.action_buffer[index]
+
     def get_latest_feature(self):
         """
         Gets the latest feature
         """
         max_index = len(self.feature_buffer) - 1
         return self.get_feature_at_index(max_index)
+
+    def get_latest_reward(self):
+        """
+        Gets latest reward
+        """
+        max_index = len(self.feature_buffer) - 1
+        return self.get_reward_at_index(max_index)
+
+    def get_latest_done(self):
+        """
+        Get latest done indicator
+        """
+        max_index = len(self.feature_buffer) - 1
+        return self.get_done_at_index(max_index)
+
+    def get_latest_action(self):
+        """
+        Returns the latest *past* action. This differs from
+        the `get_action` method which gets the *next* action.
+        """
+        max_index = len(self.feature_buffer) - 1
+        return self.get_action_at_index(max_index)
 
     def get_action(self):
         """
@@ -164,7 +188,7 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         # FIXME- Note agmeth.get_action assumes `policy_source` is a Q func. This will not work with policy grads
 
         # Do random policy until we have sufficiently filled the replay buffer
-        is_initial_buffer_fill_done = self.iteration // self.grad_update_frequency >= self.initial_sims
+        is_initial_buffer_fill_done = self.iteration >= self.replay_buffer_min
         is_stack_crossing_episodes = any([done is None for done in self.done_buffer[-self.get_states_start():]])
 
         # Do random policy until we have sufficiently filled the replay buffer
@@ -234,6 +258,42 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         self.record_valid()
         self.mem_frame_counter += 1
 
+    def simulate_single(self):
+        """
+        Do a single iteration of simulation of the environment.
+
+        :return: The next observation, action, reward, done state
+        """
+        # List indexing is O(1) so we're not concern about performance hits of getting last state from buffer
+        prev_done = self.get_latest_done()
+        prev_action = self.get_latest_action()
+
+        self.iteration += 1
+        repeat_action = (self.iteration % self.action_repeat) != 0
+
+        # Update target after the appropiate number of iterations
+        if self.use_target_model and (self.iteration % self.target_update_frequency) == 0 \
+                and self.iteration > self.replay_buffer_min:
+            self.update_target()
+
+        # Check if episode done, if so draw next state with reset method on env
+        if prev_done:
+            observation, action, reward, done = self.environment.reset(), None, None, None
+            self.episode += 1
+        # Otherwise only get action every action_repeat iterations or on restart and use action to get next state
+        else:
+            # Get a new action after repeating action_repeat # times
+            if not repeat_action or prev_action is None:
+                # The previous action getter uses the previous observation which we get from the replay buffer
+                action = self.get_action()
+            else:
+                action = prev_action
+
+            observation, reward, done, info = self.environment.step(action)
+
+        # The record method takes care of recording observed states
+        self.record(observation, reward, done, action)
+
     def simulate(self):
         """
         Simulate grad_update_frequency steps of the agent
@@ -246,42 +306,12 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         :return:
         """
 
-        observation = self.prev_observation
-        done = self.prev_done
-        action = self.prev_action
-
         # Simulate grad_update_frequency # of environment and action steps
         for iter in range(self.grad_update_frequency):
-            self.iteration += 1
-            repeat_action = (self.iteration % self.action_repeat) != 0
+            # The simulate single method carries out a single simulation step
+            self.simulate_single()
 
-            # Update target after the appropiate number of iterations
-            if self.use_target_model and (self.iteration % self.target_update_frequency) == 0\
-                    and self.iteration > self.initial_iterations:
-
-                self.update_target()
-
-            # Check if episode done, if so draw next state with reset method on env
-            if done:
-                observation, action, reward, done = self.environment.reset(), None, None, None
-                self.episode += 1
-            # Otherwise only get action every action_repeat iterations or on restart and use action to get next state
-            else:
-                # Get a new action after repeating action_repeat # times
-                if not repeat_action or action is None:
-                    action = self.get_action()
-
-                observation, reward, done, info = self.environment.step(action)
-
-            # Note that if we choose to skip frames then frames occurring during action repeat are not saved in buffer
-            if repeat_action and self.skip_frames:
-                continue
-
-            # The record method takes care of recording observed states
-            self.record(observation, reward, done, action)
-
-        self.prev_observation, self.prev_done, self.prev_action = observation, done, action
-
+        # Return iteration number for consistency assertion in batch getter
         return self.iteration
 
     @abstractmethod

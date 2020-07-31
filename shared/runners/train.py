@@ -47,16 +47,13 @@ rundef.model.fit_generator(rundef.train_gen,
                            steps_per_epoch=rundef.steps_per_epoch,
                            verbose=1,  # 0 in notebook, verbose doesn't slow down training, we checked
                            callbacks=[tensorboard,
-                                      #scheduler,
                                       evaluate_agent,
                                       checkpointer,
                                       garbage_collection,
                                       ],
-                           shuffle=True, # Note this only works because we removed step parameters
-                           use_multiprocessing=False, # Actually significantly faster when this is false.
-                           # FIXME - leaving workers to zero for now as a solution to model prediction
-                           # FIXME - within generator. See: https://github.com/keras-team/keras/issues/5511
-                           workers=0,  # Optimal: More workers doesn't increase images/second, makes it slightly slower
+                           shuffle=False,  # We don't want to shuffle indices in DQN since order matters
+                           use_multiprocessing=False,  # Actually significantly faster when this is false.
+                           workers=1,  # Since the agent is stateful synchronicity matters, so no more than 1 worker
                            max_queue_size=4,  # Optimal: A larger queue seems to not make much of a difference
                            initial_epoch=epoch_start
                           )

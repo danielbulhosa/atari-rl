@@ -8,8 +8,8 @@ import time
 
 class EvaluateAgentCallback(call.Callback):
 
-    def __init__(self, sequence_constructor, tb_callback, num_episodes=30,
-                 num_init_samples=1000, num_max_iter=np.inf, init_state_dir=None):
+    def __init__(self, sequence_constructor, tb_callback, epsilon=(lambda iter: 0.05),
+                 num_episodes=30, num_init_samples=1000, num_max_iter=np.inf, init_state_dir=None):
 
         """
         Create a callback that evaluates the performance of
@@ -31,6 +31,8 @@ class EvaluateAgentCallback(call.Callback):
         :param tb_callback: The Tensorboard callback. We use this
                callback to write our evaluation metrics to the
                Tensorboard.
+        :param epsilon: The exploration schedule, i.e. how epsilon
+               is chosen based on the iteration number.
         :param num_episodes: The number of episodes to evaluate the
                agent on.
         :param num_init_samples: The number of initial states on which
@@ -41,6 +43,7 @@ class EvaluateAgentCallback(call.Callback):
 
         self.sequence_constructor = sequence_constructor
         self.tb_callback = tb_callback
+        self.epsilon = epsilon
         self.num_episodes = num_episodes
         self.num_init_samples = num_init_samples
         self.num_max_iter = num_max_iter
@@ -52,8 +55,8 @@ class EvaluateAgentCallback(call.Callback):
 
     def create_initial_states(self, init_state_dir):
 
-        filepath = init_state_dir + '/init_states.npz'
-        if init_state_dir is not None and os.path.isfile(filepath):
+        filepath = init_state_dir + '/init_states.npz' if init_state_dir is not None else None
+        if filepath is not None and os.path.isfile(filepath):
             print("Loading initial sampled states from initial state pickle at: {}".format(filepath))
 
             with open(filepath, 'rb') as file:
@@ -72,7 +75,7 @@ class EvaluateAgentCallback(call.Callback):
         # Create sample of initial states for assessing performance
         for num in range(self.num_init_samples):
             # Reset sequence class, generate initial observation stack
-            policy_sequence = self.sequence_constructor()
+            policy_sequence = self.sequence_constructor(self.epsilon)
             for iteration in range(policy_sequence.get_states_start()):
                 policy_sequence.simulate_single()
             # Get latest (in this case the first) feature
@@ -81,11 +84,12 @@ class EvaluateAgentCallback(call.Callback):
 
         init_states = np.array(init_states)
 
-        print("Saving generated initial states at aforementioned file path")
-        with open(filepath, 'wb') as file:
-            np.savez_compressed(file, init_states)
+        if filepath is not None:
+            print("Saving generated initial states at aforementioned file path")
+            with open(filepath, 'wb') as file:
+                np.savez_compressed(file, init_states)
 
-        print("Time to create and serialize initial states: {} seconds".format(round(time.time() - ti, 2)))
+        print("Time to create and (possibly) serialize initial states: {} seconds".format(round(time.time() - ti, 2)))
 
         return init_states
 
@@ -132,15 +136,15 @@ class EvaluateAgentCallback(call.Callback):
 
         average_reward = np.mean(np.array(total_rewards))
         average_episode_length = np.mean(np.array(episode_lenghts))
-        num_episodes = sequence.episode
+        num_episodes = sequence.episode - 1
 
         return average_reward, average_episode_length, num_episodes
 
     def on_train_begin(self, logs=None):
         # Need a new sequence each time to reset instance state
-        policy_sequence = self.sequence_constructor()
+        policy_sequence = self.sequence_constructor(self.epsilon)
         average_reward, average_episode_length, average_num_episodes = self.simulate_episodes(policy_sequence)
-        random_sequence = self.sequence_constructor(random=True)
+        random_sequence = self.sequence_constructor(lambda iteration: 1)  # Random policy
         random_reward, random_episode_length, random_num_episodes = self.simulate_episodes(random_sequence)
 
         print("\nInitial valuation. " +
@@ -152,7 +156,7 @@ class EvaluateAgentCallback(call.Callback):
               "\nNumber of episodes for random policy over {} max iterations: {}".format(self.num_max_iter, random_num_episodes))
 
     def on_epoch_end(self, epoch, logs=None):
-        policy_sequence = self.sequence_constructor()
+        policy_sequence = self.sequence_constructor(self.epsilon)
         average_reward, average_episode_length, num_episodes = self.simulate_episodes(policy_sequence)
 
         init_sample_values = self.evaluate_state(self.init_states, policy_sequence.graph)

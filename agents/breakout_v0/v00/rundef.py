@@ -98,6 +98,7 @@ replay_buffer_min = 50 * 10**3  # Measured in frames STORED IN BUFFER, technical
 eval_episodes = np.inf  # No upper bound on the number of episodes evaluated
 eval_max_iter = 10000 // builtin_action_repeat_avg  # Upper bound of evaluation measured in frames, converted to iters
 eval_num_samples = 10000
+take_pair_max = True
 
 """
 Training & Validation Generators
@@ -137,7 +138,7 @@ def evaluation_sequence_constructor():
                          graph=graph,
                          n_stack=num_stack,
                          stack_dims=input_image_dims,
-                         pair_max=True,  # We checked and the underlying simulator does NOT take pairwise max
+                         pair_max=take_pair_max,  # We checked and the underlying simulator does NOT take pairwise max
                          epsilon=eval_exploration_schedule,
                          batch_size=0,  # For validation we do not create batches, hence we do not use this parameter
                          grad_update_frequency=0,
@@ -145,7 +146,7 @@ def evaluation_sequence_constructor():
                          action_repeat=1,  # No need for manual action repeat, Gym environment handles repeats
                          gamma=gamma,
                          epoch_length=0,
-                         replay_buffer_size=num_stack,
+                         replay_buffer_size=num_stack + take_pair_max, # Add one frame if we take pair maxes
                          replay_buffer_min=0,
     )
 

@@ -31,7 +31,6 @@ else:
     epochs = rundef.num_epochs
 
 """Callbacks"""
-scheduler = rundef.scheduler  # Scheduler class can vary
 tensorboard = call.TensorBoard(**rundef.tensorboard_params)
 checkpointer = call.ModelCheckpoint(**rundef.checkpointer_params)
 evaluate_agent = EvaluateAgentCallback(**{'tb_callback': tensorboard, **rundef.evaluator_params})

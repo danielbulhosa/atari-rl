@@ -120,7 +120,6 @@ class AtariSequence(SynchronousSequence):
                              # For validation we do not create batches, hence we do not use this parameter
                              grad_update_frequency=0,
                              target_update_frequency=None,
-                             action_repeat=1,  # No need for manual action repeat, Gym environment handles repeats
                              gamma=self.gamma,
                              epoch_length=0,
                              replay_buffer_size=self.get_states_start(),  # Add one frame if we take pair maxes

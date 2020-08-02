@@ -96,7 +96,7 @@ def sample_weights_and_gradients(model, train_gen):
             print(evaluated_gradients)
 
 
-def test_generator(train_gen):
+def test_generator(train_gen, max_epoch=None):
     """
     Runs training generator for defined number of epochs
     to check no minibatches raise errors.
@@ -104,8 +104,10 @@ def test_generator(train_gen):
     :param train_gen: The generator creating training data.
     """
 
+    epochs = train_gen.epoch if max_epoch is None else max_epoch + 1
+
     print("\n")
-    for epoch in range(1, train_gen.epoch_length):
+    for epoch in range(1, epochs):
         break  # FIXME, remove break
         print("Generator Test: Epoch {}".format(epoch))
         train_gen[epoch]

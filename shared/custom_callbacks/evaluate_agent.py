@@ -2,13 +2,14 @@ import keras.callbacks as call
 import numpy as np
 import tensorflow as tf
 import shared.agent_methods.methods as agmeth
+import os
+import time
 
 
 class EvaluateAgentCallback(call.Callback):
 
-    def __init__(self, environment, gamma, tb_callback,
-                 epsilon=(lambda iteration: 0.05), num_episodes=30,
-                 num_init_samples=1000):
+    def __init__(self, sequence_constructor, tb_callback, epsilon=(lambda iter: 0.05),
+                 num_episodes=30, num_init_samples=1000, num_max_iter=np.inf, init_state_dir=None):
 
         """
         Create a callback that evaluates the performance of
@@ -25,31 +26,74 @@ class EvaluateAgentCallback(call.Callback):
         as it was found to be an estimator of model performance with
         less variance.
 
-        :param environment: The environment the agent (model) is
-               being trained on.
-        :param gamma: The discount rate for rewards. Used for
-               calculating total episode rewards.
+        :param sequence_constructor: Constructor for the sequence class
+               used to simulate the agent and the environment.
         :param tb_callback: The Tensorboard callback. We use this
                callback to write our evaluation metrics to the
                Tensorboard.
-        :param epsilon: A function taking in the current iteration
-               and returning the epsilon used to choose between
-               exploration and exploitation.
+        :param epsilon: The exploration schedule, i.e. how epsilon
+               is chosen based on the iteration number.
         :param num_episodes: The number of episodes to evaluate the
                agent on.
         :param num_init_samples: The number of initial states on which
                to sample the policy value on.
+        :param num_max_iter: The number of maximum iterations to simulate
+               for the purpose of evaluation.
         """
 
-        self.environment = environment
-        self.gamma = gamma
+        self.sequence_constructor = sequence_constructor
         self.tb_callback = tb_callback
         self.epsilon = epsilon
         self.num_episodes = num_episodes
         self.num_init_samples = num_init_samples
+        self.num_max_iter = num_max_iter
         self.step_number = 0
+        self.init_states = self.create_initial_states(init_state_dir)
 
-    def simulate_episodes(self, action_getter):
+        assert num_episodes is not np.inf or num_max_iter is not np.inf, \
+            "`num_episodes` and `num_max_iter` cannot both be equal to `np.inf`"
+
+    def create_initial_states(self, init_state_dir):
+
+        filepath = init_state_dir + '/init_states.npz' if init_state_dir is not None else None
+        if filepath is not None and os.path.isfile(filepath):
+            print("Loading initial sampled states from initial state pickle at: {}".format(filepath))
+
+            with open(filepath, 'rb') as file:
+                init_states = np.load(file)['arr_0']
+                num_states_in_file = len(init_states)
+
+                assert num_states_in_file == self.num_init_samples,\
+                    "Loaded initial state pickle contains {} states ".format(num_states_in_file) + \
+                    "but callback constructor requires {}".format(self.num_init_samples)
+
+            return init_states
+
+        print("Generating initial sampled states since no initial state pickle found at: {}".format(filepath))
+        ti = time.time()
+        init_states = []
+        # Create sample of initial states for assessing performance
+        for num in range(self.num_init_samples):
+            # Reset sequence class, generate initial observation stack
+            policy_sequence = self.sequence_constructor(self.epsilon)
+            for iteration in range(policy_sequence.get_states_start()):
+                policy_sequence.simulate_single()
+            # Get latest (in this case the first) feature
+            observation = policy_sequence.get_latest_feature()
+            init_states.append(observation)
+
+        init_states = np.array(init_states)
+
+        if filepath is not None:
+            print("Saving generated initial states at aforementioned file path")
+            with open(filepath, 'wb') as file:
+                np.savez_compressed(file, init_states)
+
+        print("Time to create and (possibly) serialize initial states: {} seconds".format(round(time.time() - ti, 2)))
+
+        return init_states
+
+    def simulate_episodes(self, sequence):
         """
         Code for simulating an episode. Used in evaluation
         callback for simulating episodes with agent and
@@ -60,57 +104,69 @@ class EvaluateAgentCallback(call.Callback):
         :return: Average rewards and episode lengths.
         """
 
-        total_rewards = np.empty(self.num_episodes)
-        episode_lenghts = np.empty(self.num_episodes)
+        total_rewards = []
+        episode_lenghts = []
 
-        for episode in range(self.num_episodes):
-            iteration = 0
+        while sequence.episode <= self.num_episodes:
             discount_factor = 1
             total_reward = 0
-            observation = self.environment.reset()
-            done = False
+            done = sequence.get_latest_done()
+            assert not done, "Initial done of episode should always be `None` or `False`"
+            iteration_start = sequence.iteration
 
-            while not done:
-                iteration += 1
-                action = action_getter(observation, iteration)
-                observation, reward, done, info = self.environment.step(action)
+            while not done and sequence.iteration <= self.num_max_iter:
+                sequence.simulate_single()
+                reward = sequence.get_latest_reward()
+                done = sequence.get_latest_done()
                 total_reward += discount_factor * reward
-                discount_factor *= self.gamma
+                discount_factor *= sequence.gamma
 
-            total_rewards[episode] = total_reward
-            episode_lenghts[episode] = iteration
+            # If episode was not completed and max iterations reached then do not count the episode and break
+            if not done and sequence.iteration > self.num_max_iter:
+                break
+            # Otherwise count the episode and see if we reached the max iterations yet, loop or exit accordingly
+            else:
+                total_rewards.append(total_reward)
+                episode_lenghts.append(sequence.iteration - iteration_start)
+                # Simulate one more step to restart environment
+                sequence.simulate_single()
 
-        average_reward = np.mean(total_rewards)
-        average_episode_length = np.mean(episode_lenghts)
+                if sequence.iteration > self.num_max_iter:
+                    break
 
-        return average_reward, average_episode_length
+        average_reward = np.mean(np.array(total_rewards))
+        average_episode_length = np.mean(np.array(episode_lenghts))
+        num_episodes = sequence.episode - 1
+
+        return average_reward, average_episode_length, num_episodes
 
     def on_train_begin(self, logs=None):
-        average_reward, average_episode_length = self.simulate_episodes(self.get_action)
-        random_reward, random_episode_length = self.simulate_episodes(self.get_random_action)
+        # Need a new sequence each time to reset instance state
+        policy_sequence = self.sequence_constructor(self.epsilon)
+        average_reward, average_episode_length, average_num_episodes = self.simulate_episodes(policy_sequence)
+        random_sequence = self.sequence_constructor(lambda iteration: 1)  # Random policy
+        random_reward, random_episode_length, random_num_episodes = self.simulate_episodes(random_sequence)
 
         print("\nInitial valuation. " +
               "\nAverage reward of initial policy over {} episodes: {}".format(self.num_episodes, average_reward) +
               "\nAverage reward of random policy over {} episodes: {}".format(self.num_episodes, random_reward) +
               "\nAverage episode length of initial policy over {} episodes: {}".format(self.num_episodes, average_episode_length) +
-              "\nAverage episode length of random policy over {} episodes: {}".format(self.num_episodes, random_episode_length))
+              "\nAverage episode length of random policy over {} episodes: {}".format(self.num_episodes, random_episode_length) +
+              "\nNumber of episodes for initial policy over {} max iterations: {}".format(self.num_max_iter, average_num_episodes) +
+              "\nNumber of episodes for random policy over {} max iterations: {}".format(self.num_max_iter, random_num_episodes))
 
     def on_epoch_end(self, epoch, logs=None):
+        policy_sequence = self.sequence_constructor(self.epsilon)
+        average_reward, average_episode_length, num_episodes = self.simulate_episodes(policy_sequence)
 
-        average_reward, average_episode_length = self.simulate_episodes(self.get_action)
-        init_states = []
-
-        for num in range(self.num_init_samples):
-            observation = self.environment.reset()
-            init_states.append(observation)
-
-        init_sample_values = self.evaluate_state(np.array(init_states))
+        init_sample_values = self.evaluate_state(self.init_states, policy_sequence.graph)
         average_init_value = np.mean(init_sample_values)
 
         # Code borrowed from: https://chadrick-kwag.net/how-to-manually-write-to-tensorboard-from-tf-keras-callback-useful-trick-when-writing-a-handful-of-validation-metrics-at-once/
         items_to_write = {
             "average_reward": average_reward,
             "average_episode_length": average_episode_length,
+            "number_of_episodes": num_episodes,
             "average_initial_state_value": average_init_value
         }
         writer = self.tb_callback.writer
@@ -126,13 +182,8 @@ class EvaluateAgentCallback(call.Callback):
         print("\nEvaluation complete. " +
               "\nAverage reward over {} episodes: {}".format(self.num_episodes, average_reward) +
               "\nAverage episode length over {} episodes: {}".format(self.num_episodes, average_episode_length) +
+              "\nNumber of episodes over {} max iterations: {}".format(self.num_max_iter, num_episodes) +
               "\nAverage expected value across {} initial states: {}".format(self.num_init_samples, average_init_value))
 
-    def get_action(self, state, iteration):
-        return agmeth.get_action(self.model, self.environment, [state], self.epsilon, iteration)
-
-    def get_random_action(self, state, iteration):
-        return self.environment.action_space.sample()
-
-    def evaluate_state(self, states):
-        return agmeth.evaluate_state(self.model, states)
+    def evaluate_state(self, states, graph):
+        return agmeth.evaluate_state(self.model, states, graph)

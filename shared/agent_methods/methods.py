@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def evaluate_state(model, states, target_model=None):
+def evaluate_state(model, states, graph, target_model=None):
     """
     Uses the `model` passed to function to calculate
     max_a Q(s, a) where s is equal to the `states`
@@ -14,7 +14,8 @@ def evaluate_state(model, states, target_model=None):
     """
 
     dummy_actions = np.array([0 for state in states])  # Needed because of structure of model
-    all_Q = model.predict([states, dummy_actions])
+    with graph.as_default():
+        all_Q = model.predict([states, dummy_actions])
 
     if target_model is None:
         Q_max = np.max(all_Q[0], axis=1)
@@ -35,12 +36,13 @@ def evaluate_state(model, states, target_model=None):
             actions.append(np.random.choice(action_list))
 
         # Use one model to get action and another to get values: Double DQN
-        Q_max = target_model.predict([states, np.array(actions)])[1].reshape(-1)
+        with graph.as_default():
+            Q_max = target_model.predict([states, np.array(actions)])[1].reshape(-1)
 
     return Q_max
 
 
-def get_action(model, environment, state, epsilon, iteration):
+def get_action(model, environment, state, epsilon, iteration, graph):
     """
     Uses `model` estimating the Q function to select
     the next optimal action based on the current `state`.
@@ -64,7 +66,8 @@ def get_action(model, environment, state, epsilon, iteration):
         actions = [0 for state in state]  # We don't actually care about indexing Q_0
         assert len(state) == 1, "Only one state should be passed to this method"
 
-        Q_a = model.predict([np.array(state), np.array(actions)])[0]
+        with graph.as_default():
+            Q_a = model.predict([np.array(state), np.array(actions)])[0]
 
         # Note we need to reshape because output is 2D array.
         # Each 2D Array entry is the 2D index of a max. Since

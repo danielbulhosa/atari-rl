@@ -4,6 +4,7 @@ import keras.optimizers as opt
 import keras.metrics as met
 import keras.losses as losses
 import keras.initializers as init
+import tensorflow as tf
 import shared.definitions.paths as paths
 import os
 from os import path
@@ -44,7 +45,8 @@ model = mod.Model(inputs=[state_input, action_input], outputs=[value_out, action
 
 optimizer = opt.RMSprop(0.001)  # FIXME - do we want to change our optimizer?
 
-
+model._make_predict_function()
+graph = tf.get_default_graph()
 model.compile(optimizer=optimizer,
               loss=[None, losses.mean_squared_error],
               metrics=[met.mean_squared_error],
@@ -64,7 +66,6 @@ eval_exploration_schedule = (lambda iteration: 0.05)
 grad_update_frequency = 1
 train_batch_size = 512
 target_update_frequency = None  # Multiplying by grad update freq lets us interpret the second number as epochs
-action_repeat = 1  # The average episode length at the beginning is 9 steps, 4 repetitions would be half the episode...
 gamma = 1
 epoch_length = 1000
 replay_buffer_size = 16 * 1000  # Multiplying by grad update freq lets us interpret the second number as epochs
@@ -72,12 +73,24 @@ replay_buffer_min = 10000
 eval_episodes = 100
 eval_num_samples = 1000
 
+train_gen = EnvironmentSequence(model,
+                                source_type='value',
+                                environment=copy.deepcopy(environment),
+                                graph=graph,
+                                epsilon=train_exploration_schedule,
+                                batch_size=train_batch_size,
+                                grad_update_frequency=grad_update_frequency,
+                                target_update_frequency=target_update_frequency,
+                                gamma=gamma,
+                                epoch_length=epoch_length,
+                                replay_buffer_size=replay_buffer_size,
+                                replay_buffer_min=replay_buffer_min,
+                                use_double_dqn=False)
+
+
 """
 Callback Params
 """
-
-# FIXME - Need to use learning rate scheduler used in different papers?
-scheduler = None
 
 log_dir = paths.agents + 'mountain_car_v0/v{:02d}/logs'.format(version)
 checkpoint_dir = paths.agents + 'mountain_car_v0/v{:02d}/checkpoints'.format(version)
@@ -102,9 +115,9 @@ tensorboard_params = {'log_dir': log_dir,
 checkpointer_params = {'filepath': checkpoint_dir + '/weights.{epoch:02d}.hdf5',
                        'verbose': 1}
 
-evaluator_params = {'environment': copy.deepcopy(environment),
-                    'gamma': gamma,
+evaluator_params = {'sequence_constructor': train_gen.create_validation_instance,
                     'epsilon': eval_exploration_schedule,
+                    'init_state_dir': None,
                     'num_episodes': eval_episodes,
                     'num_init_samples': eval_num_samples}
 
@@ -119,21 +132,6 @@ loading_params = {'checkpoint_dir': None,
                   'test_model_file': '/weights.{epoch:02d}.hdf5',  # Weight file used for testing performance
                   'test_model_dir': os.path.dirname(os.path.realpath(__file__)),
                   'epoch_start': None}
-
-
-train_gen = EnvironmentSequence(model,
-                                source_type='value',
-                                environment=copy.deepcopy(environment),
-                                epsilon=train_exploration_schedule,
-                                batch_size=train_batch_size,
-                                grad_update_frequency=grad_update_frequency,
-                                target_update_frequency=target_update_frequency,
-                                action_repeat=action_repeat,
-                                gamma=gamma,
-                                epoch_length=epoch_length,
-                                replay_buffer_size=replay_buffer_size,
-                                replay_buffer_min=replay_buffer_min,
-                                use_double_dqn=False)
 
 if __name__ == '__main__':
     model.summary()

@@ -97,7 +97,7 @@ replay_buffer_size = 10**6  # Note that the paper measures this number in frames
 replay_buffer_min = 50 * 10**3  # Measured in frames STORED IN BUFFER, technically more frames are played due to repeats
 eval_episodes = np.inf  # No upper bound on the number of episodes evaluated
 eval_max_iter = 10000 // builtin_action_repeat_avg  # Upper bound of evaluation measured in frames, converted to iters
-eval_num_samples = 10000
+eval_num_samples = 1000
 take_pair_max = True
 
 """

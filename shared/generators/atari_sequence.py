@@ -8,7 +8,7 @@ class AtariSequence(SynchronousSequence):
 
     def __init__(self, policy_source, source_type, environment, graph,
                  n_stack, stack_dims, pair_max, epsilon, batch_size,
-                 grad_update_frequency, target_update_frequency, action_repeat,
+                 grad_update_frequency, target_update_frequency,
                  gamma, epoch_length, replay_buffer_size=None,
                  replay_buffer_min=None, use_double_dqn=False):
 
@@ -19,9 +19,8 @@ class AtariSequence(SynchronousSequence):
 
         super().__init__(policy_source, source_type, environment, graph,
                          epsilon, batch_size, grad_update_frequency,
-                         target_update_frequency, action_repeat,
-                         gamma, epoch_length, replay_buffer_size,
-                         replay_buffer_min, use_double_dqn)
+                         target_update_frequency, gamma, epoch_length,
+                         replay_buffer_size, replay_buffer_min, use_double_dqn)
 
     def get_states_start(self):
         # Plus one when pair_max is true because for each frame we take
@@ -93,8 +92,11 @@ class AtariSequence(SynchronousSequence):
             return 0
 
     def get_reward_at_index(self, index):
-        # Since ALE handles skipping frames we do NOT sum rewards. We only take the reward at the index
-        # ALE seems to return the reward differential between frames (and we assume accounts for skips?)
+        """"
+        Since Gym handles skipping frames we do NOT sum rewards.
+        We only take the reward at the index. Gym returns the sum
+        of ALE rewards: https://github.com/openai/gym/blob/master/gym/envs/atari/atari_env.py#L120
+        """
         return AtariSequence.reward_transform(self.reward_buffer[index])
 
     def create_validation_instance(self, exploration_schedule):

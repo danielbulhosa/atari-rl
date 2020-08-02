@@ -33,7 +33,6 @@ class EnvironmentSequence(SynchronousSequence):
                                    batch_size=0,
                                    grad_update_frequency=0,
                                    target_update_frequency=None,
-                                   action_repeat=self.action_repeat,
                                    gamma=self.gamma,
                                    epoch_length=0,
                                    replay_buffer_size=1,

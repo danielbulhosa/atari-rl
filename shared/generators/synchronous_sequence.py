@@ -8,9 +8,9 @@ from abc import ABCMeta, abstractmethod
 class SynchronousSequence(Sequence, metaclass=ABCMeta):
     def __init__(self, policy_source, source_type, environment, graph,
                  epsilon, batch_size, grad_update_frequency,
-                 target_update_frequency, action_repeat,
-                 gamma, epoch_length, replay_buffer_size=None,
-                 replay_buffer_min=None, use_double_dqn=False):
+                 target_update_frequency, gamma, epoch_length,
+                 replay_buffer_size=None, replay_buffer_min=None,
+                 use_double_dqn=False):
         """
         We initialize the SynchronousSequence class
         with a batch size and an environment to generate
@@ -39,7 +39,6 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         self.batch_size = batch_size
         self.grad_update_frequency = grad_update_frequency
         self.target_update_frequency = target_update_frequency
-        self.action_repeat = action_repeat
         self.gamma = gamma
         self.epoch_length = epoch_length
         self.replay_buffer_size = replay_buffer_size if replay_buffer_size is not None else batch_size
@@ -270,7 +269,6 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         prev_action = self.get_latest_action()
 
         self.iteration += 1
-        repeat_action = (self.iteration % self.action_repeat) != 0
 
         # Update target after the appropiate number of iterations
         if self.use_target_model and (self.iteration % self.target_update_frequency) == 0 \
@@ -281,14 +279,10 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
         if prev_done:
             observation, action, reward, done = self.environment.reset(), None, None, None
             self.episode += 1
-        # Otherwise only get action every action_repeat iterations or on restart and use action to get next state
+        # Otherwise only get an action and use it to get next state
         else:
-            # Get a new action after repeating action_repeat # times
-            if not repeat_action or prev_action is None:
-                # The previous action getter uses the previous observation which we get from the replay buffer
-                action = self.get_action()
-            else:
-                action = prev_action
+            # The previous action getter uses the previous observation which we get from the replay buffer
+            action = self.get_action()
 
             observation, reward, done, info = self.environment.step(action)
 

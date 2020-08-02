@@ -93,11 +93,9 @@ class AtariSequence(SynchronousSequence):
             return 0
 
     def get_reward_at_index(self, index):
-        # We take total rewards since we're skipping frames
-        raw_rewards = self.reward_buffer[index - self.action_repeat + 1:index + 1]
-        normalized_rewards = [self.reward_transform(reward) for reward in raw_rewards]
-        total_rewards = sum(normalized_rewards)
-        return AtariSequence.reward_transform(total_rewards)
+        # Since ALE handles skipping frames we do NOT sum rewards. We only take the reward at the index
+        # ALE seems to return the reward differential between frames (and we assume accounts for skips?)
+        return AtariSequence.reward_transform(self.reward_buffer[index])
 
     def create_validation_instance(self, exploration_schedule):
         """

@@ -163,6 +163,7 @@ Callback Params
 
 log_dir = paths.agents + 'breakout_v0/v{:02d}/logs'.format(version)
 checkpoint_dir = paths.agents + 'breakout_v0/v{:02d}/checkpoints'.format(version)
+data_dir = paths.agents + 'breakout_v0/v{:02d}/data'.format(version)
 
 if not path.isdir(checkpoint_dir):
     os.mkdir(checkpoint_dir)
@@ -186,7 +187,8 @@ checkpointer_params = {'filepath': checkpoint_dir + '/weights.{epoch:02d}.hdf5',
 evaluator_params = {'num_episodes': eval_episodes,
                     'num_max_iter': eval_max_iter,
                     'num_init_samples': eval_num_samples,
-                    'sequence_constructor': evaluation_sequence_constructor}
+                    'sequence_constructor': evaluation_sequence_constructor,
+                    'init_state_dir': data_dir}
 
 """
 Loading Params

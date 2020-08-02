@@ -2,12 +2,14 @@ import keras.callbacks as call
 import numpy as np
 import tensorflow as tf
 import shared.agent_methods.methods as agmeth
+import os
+import time
 
 
 class EvaluateAgentCallback(call.Callback):
 
     def __init__(self, sequence_constructor, tb_callback, num_episodes=30,
-                 num_init_samples=1000, num_max_iter=np.inf):
+                 num_init_samples=1000, num_max_iter=np.inf, init_state_dir=None):
 
         """
         Create a callback that evaluates the performance of
@@ -43,9 +45,49 @@ class EvaluateAgentCallback(call.Callback):
         self.num_init_samples = num_init_samples
         self.num_max_iter = num_max_iter
         self.step_number = 0
+        self.init_states = self.create_initial_states(init_state_dir)
 
         assert num_episodes is not np.inf or num_max_iter is not np.inf, \
             "`num_episodes` and `num_max_iter` cannot both be equal to `np.inf`"
+
+    def create_initial_states(self, init_state_dir):
+
+        filepath = init_state_dir + '/init_states.npz'
+        if init_state_dir is not None and os.path.isfile(filepath):
+            print("Loading initial sampled states from initial state pickle at: {}".format(filepath))
+
+            with open(filepath, 'rb') as file:
+                init_states = np.load(file)['arr_0']
+                num_states_in_file = len(init_states)
+
+                assert num_states_in_file == self.num_init_samples,\
+                    "Loaded initial state pickle contains {} states ".format(num_states_in_file) + \
+                    "but callback constructor requires {}".format(self.num_init_samples)
+
+            return init_states
+
+        print("Generating initial sampled states since no initial state pickle found at: {}".format(filepath))
+        ti = time.time()
+        init_states = []
+        # Create sample of initial states for assessing performance
+        for num in range(self.num_init_samples):
+            # Reset sequence class, generate initial observation stack
+            policy_sequence = self.sequence_constructor()
+            for iteration in range(policy_sequence.get_states_start()):
+                policy_sequence.simulate_single()
+            # Get latest (in this case the first) feature
+            observation = policy_sequence.get_latest_feature()
+            init_states.append(observation)
+
+        init_states = np.array(init_states)
+
+        print("Saving generated initial states at aforementioned file path")
+        with open(filepath, 'wb') as file:
+            np.savez_compressed(file, init_states)
+
+        print("Time to create and serialize initial states: {} seconds".format(round(time.time() - ti, 2)))
+
+        return init_states
 
     def simulate_episodes(self, sequence):
         """
@@ -112,18 +154,8 @@ class EvaluateAgentCallback(call.Callback):
     def on_epoch_end(self, epoch, logs=None):
         policy_sequence = self.sequence_constructor()
         average_reward, average_episode_length, num_episodes = self.simulate_episodes(policy_sequence)
-        init_states = []
 
-        for num in range(self.num_init_samples):
-            # Reset sequence class, generate initial observation stack
-            policy_sequence = self.sequence_constructor()
-            for iteration in range(policy_sequence.get_states_start()):
-                policy_sequence.simulate_single()
-            # Get latest (in this case the first) feature
-            observation = policy_sequence.get_latest_feature()
-            init_states.append(observation)
-
-        init_sample_values = self.evaluate_state(np.array(init_states), policy_sequence.graph)
+        init_sample_values = self.evaluate_state(self.init_states, policy_sequence.graph)
         average_init_value = np.mean(init_sample_values)
 
         # Code borrowed from: https://chadrick-kwag.net/how-to-manually-write-to-tensorboard-from-tf-keras-callback-useful-trick-when-writing-a-handful-of-validation-metrics-at-once/

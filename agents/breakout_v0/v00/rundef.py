@@ -124,7 +124,7 @@ train_gen = AtariSequence(model,
                           )
 
 
-def evaluation_sequence_constructor():
+def evaluation_sequence_constructor(random=False):
     """
     Constructs a new sequence class for simulations
     done for evaluation. We pass a constructor to
@@ -132,6 +132,11 @@ def evaluation_sequence_constructor():
     reset the sequence (by creating a new one) when
     doing a new evaluation.
     """
+    if random:
+        exploration_schedule = lambda iteration: 1
+    else:
+        exploration_schedule = eval_exploration_schedule
+
     return AtariSequence(model,
                          source_type='value',
                          environment=copy.deepcopy(environment),
@@ -139,7 +144,7 @@ def evaluation_sequence_constructor():
                          n_stack=num_stack,
                          stack_dims=input_image_dims,
                          pair_max=take_pair_max,  # We checked and the underlying simulator does NOT take pairwise max
-                         epsilon=eval_exploration_schedule,
+                         epsilon=exploration_schedule,
                          batch_size=0,  # For validation we do not create batches, hence we do not use this parameter
                          grad_update_frequency=0,
                          target_update_frequency=None,

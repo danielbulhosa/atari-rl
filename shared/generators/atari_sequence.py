@@ -94,7 +94,9 @@ class AtariSequence(SynchronousSequence):
 
     def get_reward_at_index(self, index):
         # We take total rewards since we're skipping frames
-        total_rewards = sum(self.reward_buffer[index - self.action_repeat + 1:index + 1])
+        raw_rewards = self.reward_buffer[index - self.action_repeat + 1:index + 1]
+        normalized_rewards = [self.reward_transform(reward) for reward in raw_rewards]
+        total_rewards = sum(normalized_rewards)
         return AtariSequence.reward_transform(total_rewards)
 
     def create_validation_instance(self, exploration_schedule):

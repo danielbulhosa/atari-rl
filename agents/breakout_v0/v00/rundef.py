@@ -40,7 +40,7 @@ init_params = {'kernel_initializer': init.glorot_uniform()}
 
 # Note we don't need to set repeat_action_probability (ALE level) because repeat now handled at Gym package level
 # using `frameskip` parameter. See https://github.com/openai/gym/blob/master/gym/envs/atari/atari_env.py
-action_repeat = 4
+action_repeat = (3, 5)
 action_repeat_avg = action_repeat if isinstance(action_repeat, int) \
                             else (action_repeat[1] - action_repeat[0])/2 + action_repeat[0]
 environment = gym.make("Breakout-v0", frameskip=action_repeat)

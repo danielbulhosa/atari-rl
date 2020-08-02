@@ -123,38 +123,6 @@ train_gen = AtariSequence(model,
                           use_double_dqn=True,
                           )
 
-
-def evaluation_sequence_constructor(random=False):
-    """
-    Constructs a new sequence class for simulations
-    done for evaluation. We pass a constructor to
-    the evaluation callback because it allows us to
-    reset the sequence (by creating a new one) when
-    doing a new evaluation.
-    """
-    if random:
-        exploration_schedule = lambda iteration: 1
-    else:
-        exploration_schedule = eval_exploration_schedule
-
-    return AtariSequence(model,
-                         source_type='value',
-                         environment=copy.deepcopy(environment),
-                         graph=graph,
-                         n_stack=num_stack,
-                         stack_dims=input_image_dims,
-                         pair_max=take_pair_max,  # We checked and the underlying simulator does NOT take pairwise max
-                         epsilon=exploration_schedule,
-                         batch_size=0,  # For validation we do not create batches, hence we do not use this parameter
-                         grad_update_frequency=0,
-                         target_update_frequency=None,
-                         action_repeat=1,  # No need for manual action repeat, Gym environment handles repeats
-                         gamma=gamma,
-                         epoch_length=0,
-                         replay_buffer_size=num_stack + take_pair_max, # Add one frame if we take pair maxes
-                         replay_buffer_min=0,
-    )
-
 """
 Callback Params
 """
@@ -187,7 +155,8 @@ checkpointer_params = {'filepath': checkpoint_dir + '/weights.{epoch:02d}.hdf5',
 evaluator_params = {'num_episodes': eval_episodes,
                     'num_max_iter': eval_max_iter,
                     'num_init_samples': eval_num_samples,
-                    'sequence_constructor': evaluation_sequence_constructor,
+                    'sequence_constructor': train_gen.create_validation_instance,
+                    'epsilon': eval_exploration_schedule,
                     'init_state_dir': data_dir}
 
 """

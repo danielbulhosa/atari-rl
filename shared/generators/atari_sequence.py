@@ -1,6 +1,7 @@
 from shared.generators.synchronous_sequence import SynchronousSequence
 import numpy as np
 import cv2
+import copy
 
 
 class AtariSequence(SynchronousSequence):
@@ -95,3 +96,31 @@ class AtariSequence(SynchronousSequence):
         # We take total rewards since we're skipping frames
         total_rewards = sum(self.reward_buffer[index - self.action_repeat + 1:index + 1])
         return AtariSequence.reward_transform(total_rewards)
+
+    def create_validation_instance(self, exploration_schedule):
+        """
+        Constructs a new sequence class for simulations
+        done for evaluation. We pass a constructor to
+        the evaluation callback because it allows us to
+        reset the sequence (by creating a new one) when
+        doing a new evaluation.
+        """
+        return AtariSequence(self.current_model,
+                             source_type='value',
+                             environment=copy.deepcopy(self.environment_copy),
+                             graph=self.graph,
+                             n_stack=self.n_stack,
+                             stack_dims=self.stack_dims,
+                             pair_max=self.pair_max,
+                             # We checked and the underlying simulator does NOT take pairwise max
+                             epsilon=exploration_schedule,
+                             batch_size=0,
+                             # For validation we do not create batches, hence we do not use this parameter
+                             grad_update_frequency=0,
+                             target_update_frequency=None,
+                             action_repeat=1,  # No need for manual action repeat, Gym environment handles repeats
+                             gamma=self.gamma,
+                             epoch_length=0,
+                             replay_buffer_size=self.get_states_start(),  # Add one frame if we take pair maxes
+                             replay_buffer_min=0,
+                             )

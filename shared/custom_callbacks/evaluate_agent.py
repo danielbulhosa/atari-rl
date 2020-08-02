@@ -106,8 +106,8 @@ class EvaluateAgentCallback(call.Callback):
               "\nAverage reward of random policy over {} episodes: {}".format(self.num_episodes, random_reward) +
               "\nAverage episode length of initial policy over {} episodes: {}".format(self.num_episodes, average_episode_length) +
               "\nAverage episode length of random policy over {} episodes: {}".format(self.num_episodes, random_episode_length) +
-              "\nNumber of episodes for initial policy over {} max iterations".format(average_num_episodes, self.num_max_iter) +
-              "\nNumber of episodes for random policy over {} episodes: {}".format(random_num_episodes, self.num_max_iter))
+              "\nNumber of episodes for initial policy over {} max iterations: {}".format(self.num_max_iter, average_num_episodes) +
+              "\nNumber of episodes for random policy over {} max iterations: {}".format(self.num_max_iter, random_num_episodes))
 
     def on_epoch_end(self, epoch, logs=None):
         policy_sequence = self.sequence_constructor()
@@ -141,7 +141,7 @@ class EvaluateAgentCallback(call.Callback):
         print("\nEvaluation complete. " +
               "\nAverage reward over {} episodes: {}".format(self.num_episodes, average_reward) +
               "\nAverage episode length over {} episodes: {}".format(self.num_episodes, average_episode_length) +
-              "\nNumber of episodes over {} max iterations".format(num_episodes, self.num_max_iter) +
+              "\nNumber of episodes over {} max iterations: {}".format(self.num_max_iter, num_episodes) +
               "\nAverage expected value across {} initial states: {}".format(self.num_init_samples, average_init_value))
 
     def evaluate_state(self, states):

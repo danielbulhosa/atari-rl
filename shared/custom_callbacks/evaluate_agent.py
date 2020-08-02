@@ -98,7 +98,7 @@ class EvaluateAgentCallback(call.Callback):
         # Need a new sequence each time to reset instance state
         policy_sequence = self.sequence_constructor()
         average_reward, average_episode_length, average_num_episodes = self.simulate_episodes(policy_sequence)
-        random_sequence = self.sequence_constructor()
+        random_sequence = self.sequence_constructor(random=True)
         random_reward, random_episode_length, random_num_episodes = self.simulate_episodes(random_sequence)
 
         print("\nInitial valuation. " +
@@ -115,10 +115,15 @@ class EvaluateAgentCallback(call.Callback):
         init_states = []
 
         for num in range(self.num_init_samples):
-            observation = policy_sequence.environment.reset()
+            # Reset sequence class, generate initial observation stack
+            policy_sequence = self.sequence_constructor()
+            for iteration in range(policy_sequence.get_states_start()):
+                policy_sequence.simulate_single()
+            # Get latest (in this case the first) feature
+            observation = policy_sequence.get_latest_feature()
             init_states.append(observation)
 
-        init_sample_values = self.evaluate_state(np.array(init_states))
+        init_sample_values = self.evaluate_state(np.array(init_states), policy_sequence.graph)
         average_init_value = np.mean(init_sample_values)
 
         # Code borrowed from: https://chadrick-kwag.net/how-to-manually-write-to-tensorboard-from-tf-keras-callback-useful-trick-when-writing-a-handful-of-validation-metrics-at-once/
@@ -144,5 +149,5 @@ class EvaluateAgentCallback(call.Callback):
               "\nNumber of episodes over {} max iterations: {}".format(self.num_max_iter, num_episodes) +
               "\nAverage expected value across {} initial states: {}".format(self.num_init_samples, average_init_value))
 
-    def evaluate_state(self, states):
-        return agmeth.evaluate_state(self.model, states)
+    def evaluate_state(self, states, graph):
+        return agmeth.evaluate_state(self.model, states, graph)

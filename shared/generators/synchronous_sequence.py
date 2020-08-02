@@ -32,7 +32,8 @@ class SynchronousSequence(Sequence, metaclass=ABCMeta):
 
         self.policy_source = policy_source
         self.source_type = source_type
-        self.environment = environment
+        self.environment = environment  # Used for evolving the agent we actually train
+        self.environment_copy = copy.deepcopy(environment)  # Used for creating validation sequences
         self.graph = graph
         self.epsilon = epsilon  # This should be a function taking in the iteration number
         self.batch_size = batch_size
